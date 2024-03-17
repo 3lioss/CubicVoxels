@@ -18,6 +18,8 @@ APhysicalChunk::APhysicalChunk()
 	Mesh = CreateDefaultSubobject<UProceduralMeshComponent>("Physical mesh");
 	SetRootComponent(Mesh);
 	Mesh->bUseAsyncCooking = true;
+
+	VoxelCharacteristicsData = ConstructorHelpers::FObjectFinder<UDataTable>(TEXT("CubicVoxels/Content/DefaultVoxelCharacteistics.uasset")).Object;
 	
 }
 
@@ -249,7 +251,7 @@ void APhysicalChunk::RenderChunk(float VoxelSize)
 
 	for (auto& VoxelQuad : VoxelQuads)
 	{
-		const auto CurrentVoxelType = VoxelQuad.Get<1>().VoxelType; //TODO: replace the voxel type with an FName that relates to a material. The FName is related to its material through a data table, which serves as a "texture pack"
+		const auto CurrentVoxelType = VoxelQuad.Get<1>().VoxelType; //TO DO: replace the voxel type with an FName that relates to a material. The FName is related to its material through a data table, which serves as a "texture pack"
 		
 		if (!SectionIndices.Contains(CurrentVoxelType))
 		{
