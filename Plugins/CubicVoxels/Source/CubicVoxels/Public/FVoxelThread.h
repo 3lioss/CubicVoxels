@@ -23,6 +23,8 @@ public:
 	TQueue< FChunkThreadedWorkOrderBase, EQueueMode::Spsc> ChunkThreadedWorkOrdersQueue;
 	TQueue<TTuple<FIntVector, float>, EQueueMode::Spsc> PlayerPositionUpdates;
 
+	void StartShutdown();
+
 private:
 	FIntVector PlayerRelativeOrigin;
 	
