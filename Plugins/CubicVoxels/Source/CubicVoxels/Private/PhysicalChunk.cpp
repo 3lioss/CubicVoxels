@@ -19,7 +19,7 @@ APhysicalChunk::APhysicalChunk()
 	SetRootComponent(Mesh);
 	Mesh->bUseAsyncCooking = true;
 
-	VoxelCharacteristicsData = ConstructorHelpers::FObjectFinder<UDataTable>(TEXT("CubicVoxels/Content/DefaultVoxelCharacteistics.uasset")).Object;
+	VoxelCharacteristicsData = ConstructorHelpers::FObjectFinder<UDataTable>(TEXT("/Script/Engine.DataTable'/CubicVoxels/DefaultVoxelCharacteistics.DefaultVoxelCharacteistics'")).Object;
 	
 }
 
