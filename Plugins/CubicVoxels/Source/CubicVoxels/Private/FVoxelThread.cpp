@@ -65,6 +65,13 @@ TQueue<TTuple<FIntVector, float>, EQueueMode::Spsc>* FVoxelThread::GetPlayerUpda
 	return &PlayerPositionUpdates;
 }
 
+void FVoxelThread::StartShutdown()
+{
+	bShutdown = true;
+	ChunkThreadedWorkOrdersQueue.Empty();
+	OrderedChunkThreadedWorkOrders.Empty();
+}
+
 bool FVoxelThread::IsFartherToPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B)
 {
 	const auto  CA = A.ChunkLocation - PlayerRelativeOrigin;
