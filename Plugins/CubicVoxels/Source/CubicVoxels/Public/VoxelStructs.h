@@ -27,18 +27,18 @@ struct FVoxelCharacteristics : public FTableRowBase
 	
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FVoxel
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(SaveGame)
+	UPROPERTY(SaveGame, BlueprintReadWrite)
 	FName VoxelType = "Air";
 
-	UPROPERTY(SaveGame)
+	UPROPERTY(SaveGame,BlueprintReadWrite)
 	bool IsTransparent = true;
 	
-	UPROPERTY(SaveGame)
+	UPROPERTY(SaveGame, BlueprintReadWrite)
 	bool IsSolid = false;
 	
 };

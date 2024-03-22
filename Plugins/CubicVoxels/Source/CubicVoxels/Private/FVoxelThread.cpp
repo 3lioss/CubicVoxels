@@ -67,9 +67,9 @@ TQueue<TTuple<FIntVector, float>, EQueueMode::Spsc>* FVoxelThread::GetPlayerUpda
 
 void FVoxelThread::StartShutdown()
 {
-	bShutdown = true;
 	ChunkThreadedWorkOrdersQueue.Empty();
 	OrderedChunkThreadedWorkOrders.Empty();
+	bShutdown = true;
 }
 
 bool FVoxelThread::IsFartherToPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B)

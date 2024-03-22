@@ -49,6 +49,8 @@ static bool CompareVoxels(FVoxel v1, FVoxel v2) //function to test if two voxels
 	
 static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad,const int32 ChunkSize, float VoxelSize, FVoxel (*GenerationFunction) (FVector))
 {
+	auto StartTime = FDateTime::UtcNow(); 
+	
 	//Create the blocks three-dimensional array
 	const TUniquePtr<TArray< TArray<TArray<FVoxel>>>> ChunkBlocksPtr(new TArray< TArray<TArray<FVoxel>>>);
 	const TSharedPtr<FChunkData> CompressedChunkBlocksPtr(new FChunkData);
@@ -93,6 +95,11 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 			}
 		}
 	}
+	UE_LOG(LogTemp, Warning, TEXT("Size of chunk: %llu"), sizeof(*CompressedChunkBlocksPtr))
+
+	float TimeElapsedInMs = (FDateTime::UtcNow() - StartTime).GetTotalMilliseconds(); 
+	UE_LOG(LogTemp, Warning, TEXT("Time taken to generate: %f"), TimeElapsedInMs);
+	StartTime = FDateTime::UtcNow(); 
 		
 	//Generate the chunk's quads data
 	TMap<FIntVector4, FVoxel> QuadsData;
@@ -129,6 +136,8 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 			}
 		}
 	}
+	TimeElapsedInMs = (FDateTime::UtcNow() - StartTime).GetTotalMilliseconds(); //to remove later
+	UE_LOG(LogTemp, Warning, TEXT("Time taken to mesh: %f"), TimeElapsedInMs);
 
 	ChunkQuadsToLoad->Enqueue(MakeTuple(Coordinates, QuadsData));
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, CompressedChunkBlocksPtr));
