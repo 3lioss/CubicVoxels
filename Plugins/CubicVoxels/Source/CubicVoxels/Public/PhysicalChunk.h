@@ -25,8 +25,11 @@ public:
 	void RemoveQuad(FIntVector4 Quad);
 	
 	void RenderChunk(float VoxelSize); //Function that sets up the procedural mesh component with the data contained in ChunkQuads
-	
+
+	UFUNCTION(BlueprintCallable)
 	void DestroyBlockAt(FVector BlockWorldLocation);
+
+	UFUNCTION(BlueprintCallable)
 	void SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType);
 
 	TObjectPtr<AVoxelWorld> OwningWorld;

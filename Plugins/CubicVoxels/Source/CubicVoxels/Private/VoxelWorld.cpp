@@ -16,8 +16,8 @@ AVoxelWorld::AVoxelWorld()
 	PrimaryActorTick.bCanEverTick = true;
 	
 
-	DefaultViewDistance = 12;
-	FarViewDistance = 12;
+	DefaultViewDistance = 32;
+	FarViewDistance = 32;
 	ViewLayers = TArray<TSet<FIntVector>>();
 	ViewLayers.SetNum(FarViewDistance + 1);
 
@@ -32,7 +32,7 @@ AVoxelWorld::AVoxelWorld()
 		{
 			for (auto& Offset : {FIntVector(1,0,0), FIntVector(-1,0,0), FIntVector(0,1,0), FIntVector(0,-1,0), FIntVector(0,0,1), FIntVector(0,0,-1)})
 			{
-				if ( OneNorm(LayerElement + Offset) > OneNorm(LayerElement) )
+				if ( /*abs((LayerElement + Offset).Z) < 5 && */ OneNorm(LayerElement + Offset) > OneNorm(LayerElement) )
 				{
 					ViewLayers[i+1].Add(LayerElement + Offset);
 				}
