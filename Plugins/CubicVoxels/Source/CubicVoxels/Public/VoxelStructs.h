@@ -40,8 +40,15 @@ struct FVoxel
 	
 	UPROPERTY(SaveGame, BlueprintReadWrite)
 	bool IsSolid = false;
+
 	
 };
+
+inline bool operator== (const FVoxel& V1, const FVoxel& V2)
+{
+	return (V1.VoxelType == V2.VoxelType);
+}
+	
 
 inline FVoxel DefaultVoxel; //global variable used to denote an air voxel
 
@@ -73,6 +80,130 @@ struct FChunkData
 
 	UPROPERTY(SaveGame)
 	TArray<FVoxelStack> ChunkData;
+
+	void RemoveVoxel(FIntVector3 VoxelLocation,int32 ChunkSize){
 	
+		auto BlockIndex = VoxelLocation.X*ChunkSize*ChunkSize + VoxelLocation.Y*ChunkSize + VoxelLocation.Z;
+
+		int32 i = 0;
+	
+		while (ChunkData[i].StackSize - 1 < BlockIndex)
+		{
+			BlockIndex -= ChunkData[i].StackSize;
+			i += 1;
+		}
+	
+	
+		if (ChunkData[i].Voxel == DefaultVoxel)
+		{
+			if (BlockIndex == 0)
+			{
+				ChunkData[i].StackSize -= 1;
+				ChunkData.Insert(MakeStack(DefaultVoxel, 1), i);
+			}
+			else
+			{
+				if (BlockIndex == ChunkData[i].StackSize - 1)
+				{
+					if (i+1 < ChunkData.Num())
+					{
+						if (ChunkData[i+1].Voxel == DefaultVoxel)
+						{
+							ChunkData[i].StackSize -= 1;
+							ChunkData[i+1].StackSize += 1;
+						}
+						else
+						{
+							ChunkData[i].StackSize -= 1;
+							ChunkData.Insert(MakeStack(DefaultVoxel, 1), i+1);
+						}
+					}
+					else
+					{
+						ChunkData[i].StackSize -= 1;
+						ChunkData.Add(MakeStack(DefaultVoxel, 1));
+					}
+				}
+				else
+				{
+					const auto Temp = ChunkData[i].StackSize;
+					ChunkData[i].StackSize = BlockIndex;
+					if (i+1 < ChunkData.Num())
+					{
+						ChunkData.Insert(MakeStack(ChunkData[i].Voxel, Temp - BlockIndex - 1), i+1);
+						ChunkData.Insert(MakeStack(DefaultVoxel, 1), i+1);
+					}
+					else
+					{
+						ChunkData.Add(MakeStack(DefaultVoxel, 1));
+						ChunkData.Add(MakeStack(ChunkData[i].Voxel, Temp - BlockIndex - 1));
+					}
+				}
+			
+			}
+		}
+		}
+
+	void SetVoxel(FIntVector3 VoxelLocation, FVoxel Voxel, int32 ChunkSize)
+	{
+		auto BlockIndex = VoxelLocation.X*ChunkSize*ChunkSize + VoxelLocation.Y*ChunkSize + VoxelLocation.Z;
+
+		int32 i = 0;
+	
+		while (ChunkData[i].StackSize - 1 < BlockIndex)
+		{
+			BlockIndex -= (ChunkData)[i].StackSize;
+			i += 1;
+		}
+	
+	
+		if ((ChunkData)[i].Voxel != Voxel )
+		{
+			if (BlockIndex == 0)
+			{
+				(ChunkData)[i].StackSize -= 1;
+				ChunkData.Insert(MakeStack(Voxel, 1), i);
+			}
+			else
+			{
+				if (BlockIndex == (ChunkData)[i].StackSize - 1)
+				{
+					if (i+1 < ChunkData.Num())
+					{
+						if ((ChunkData)[i+1].Voxel == Voxel )
+						{
+							(ChunkData)[i].StackSize -= 1;
+							(ChunkData)[i+1].StackSize += 1;
+						}
+						else
+						{
+							(ChunkData)[i].StackSize -= 1;
+							ChunkData.Insert(MakeStack(Voxel, 1), i+1);
+						}
+					}
+					else
+					{
+						(ChunkData)[i].StackSize -= 1;
+						ChunkData.Add(MakeStack(Voxel, 1));
+					}
+				}
+				else
+				{
+					const auto Temp = (ChunkData)[i].StackSize;
+					(ChunkData)[i].StackSize = BlockIndex;
+					if (i+1 < ChunkData.Num())
+					{
+						ChunkData.Insert(MakeStack((ChunkData)[i].Voxel, Temp - BlockIndex - 1), i+1);
+						ChunkData.Insert(MakeStack(Voxel, 1), i+1);
+					}
+					else
+					{
+						ChunkData.Add(MakeStack(Voxel, 1));
+						ChunkData.Add(MakeStack((ChunkData)[i].Voxel, Temp - BlockIndex - 1));
+					}
+				}
+			}
+		}
+	}
 };
 

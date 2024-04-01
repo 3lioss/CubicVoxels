@@ -41,11 +41,6 @@ const int BlockTriangleData[24] = {
 	5,4,1,0, // Up
 	3,2,7,6  // Down
 };
-
-static bool CompareVoxels(FVoxel v1, FVoxel v2) //function to test if two voxels are equal
-{
-	return (v1.VoxelType == v2.VoxelType);
-}
 	
 static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad,const int32 ChunkSize, float VoxelSize, FVoxel (*GenerationFunction) (FVector))
 {
@@ -76,7 +71,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 				}
 				else
 				{
-					if ( CompareVoxels((CompressedChunkBlocksPtr->ChunkData)[BlockCounter].Voxel , (*ChunkBlocksPtr)[x][y][z]) )
+					if ( (CompressedChunkBlocksPtr->ChunkData)[BlockCounter].Voxel == (*ChunkBlocksPtr)[x][y][z] )
 					{
 						(CompressedChunkBlocksPtr->ChunkData)[BlockCounter].StackSize += 1;
 					}
@@ -87,7 +82,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 					}
 				}
 
-				if ( ! CompareVoxels( (*ChunkBlocksPtr)[x][y][z] , GetBlockAtInChunk(FIntVector(x,y,z), (*CompressedChunkBlocksPtr), ChunkSize ) ))
+				if (  (*ChunkBlocksPtr)[x][y][z] != GetBlockAtInChunk(FIntVector(x,y,z), (*CompressedChunkBlocksPtr), ChunkSize ) )
 				{
 					UE_LOG(LogTemp, Error, TEXT("There is a compression or decompression problem"));
 				}
@@ -95,7 +90,6 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 			}
 		}
 	}
-	UE_LOG(LogTemp, Warning, TEXT("Size of chunk: %llu"), sizeof(*CompressedChunkBlocksPtr))
 
 	float TimeElapsedInMs = (FDateTime::UtcNow() - StartTime).GetTotalMilliseconds(); 
 	UE_LOG(LogTemp, Warning, TEXT("Time taken to generate: %f"), TimeElapsedInMs);
@@ -126,7 +120,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 					{
 						if (!(Directions[i].X < 0 || Directions[i].X >= ChunkSize || Directions[i].Y < 0 || Directions[i].Y >= ChunkSize || Directions[i].Z < 0 || Directions[i].Z >= ChunkSize)) 
 						{
-							if ((*ChunkBlocksPtr)[Directions[i].X][Directions[i].Y][Directions[i].Z].IsTransparent == true && !CompareVoxels((*ChunkBlocksPtr)[Directions[i].X][Directions[i].Y][Directions[i].Z], (*ChunkBlocksPtr)[x][y][z]) ) 
+							if ((*ChunkBlocksPtr)[Directions[i].X][Directions[i].Y][Directions[i].Z].IsTransparent == true && ((*ChunkBlocksPtr)[Directions[i].X][Directions[i].Y][Directions[i].Z] != (*ChunkBlocksPtr)[x][y][z]) ) 
 							{
 								QuadsData.Add(FIntVector4(x,y,z,i), (*ChunkBlocksPtr)[x][y][z]);
 							}
@@ -172,7 +166,7 @@ static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTup
 						if (Directions[i].X >= 0 && Directions[i].X < ChunkSize && Directions[i].Y >= 0 && Directions[i].Y < ChunkSize && Directions[i].Z >= 0 && Directions[i].Z < ChunkSize) 
 						{
 							const auto CurrentNeighbour = GetBlockAtInChunk(FIntVector3(Directions[i].X,Directions[i].Y,Directions[i].Z),  (*CompressedChunkBlocksPtr), ChunkSize);
-							if (CurrentNeighbour.IsTransparent == true && !CompareVoxels(CurrentNeighbour, CurrentBlock) ) 
+							if (CurrentNeighbour.IsTransparent == true && (CurrentNeighbour != CurrentBlock) ) 
 							{
 								QuadsData.Add(FIntVector4(x,y,z,i), CurrentBlock);
 							}
@@ -254,7 +248,7 @@ static void ComputeChunkSideFacesFromData(FChunkData* DataOfChunkToAddFacesTo, F
 		{
 			const auto CurrentBlockLocation = LoopXDirection*x + LoopYDirection*y + LoopOrigin[DirectionIndex];
 			const auto CurrentNeighbourLocation = NormaliseCyclicalCoordinates(CurrentBlockLocation + Directions[DirectionIndex], ChunkSize) ; //There is probably a problem there as the compression-decompression and the geometry generation logic seem to be working
-			if (GetBlockAtInChunk(CurrentBlockLocation, *DataOfChunkToAddFacesTo, ChunkSize ).VoxelType != "Air" && GetBlockAtInChunk(CurrentNeighbourLocation, *NeighbourChunkBlocks, ChunkSize ).IsTransparent == true && !CompareVoxels(GetBlockAtInChunk(CurrentNeighbourLocation, *NeighbourChunkBlocks, ChunkSize ), GetBlockAtInChunk(CurrentBlockLocation, *DataOfChunkToAddFacesTo, ChunkSize )))
+			if (GetBlockAtInChunk(CurrentBlockLocation, *DataOfChunkToAddFacesTo, ChunkSize ).VoxelType != "Air" && GetBlockAtInChunk(CurrentNeighbourLocation, *NeighbourChunkBlocks, ChunkSize ).IsTransparent == true && (GetBlockAtInChunk(CurrentNeighbourLocation, *NeighbourChunkBlocks, ChunkSize ) != GetBlockAtInChunk(CurrentBlockLocation, *DataOfChunkToAddFacesTo, ChunkSize )))
 			{
 				SideQuadsData.Add(FIntVector4(CurrentBlockLocation.X,CurrentBlockLocation.Y, CurrentBlockLocation.Z , DirectionIndex), GetBlockAtInChunk(CurrentBlockLocation, *DataOfChunkToAddFacesTo, ChunkSize ));
 			}
