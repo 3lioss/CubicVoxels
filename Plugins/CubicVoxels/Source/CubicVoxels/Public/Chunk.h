@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "VoxelWorld.h"
-#include "PhysicalChunk.generated.h"
+#include "Chunk.generated.h"
 
 class UProceduralMeshComponent; 
 struct FMeshData;
@@ -26,13 +26,13 @@ public:
 	
 	void RenderChunk(float VoxelSize); //Function that sets up the procedural mesh component with the data contained in ChunkQuads
 
-	UFUNCTION(BlueprintCallable)
 	void DestroyBlockAt(FVector BlockWorldLocation);
 
-	UFUNCTION(BlueprintCallable)
 	void SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType);
 
+	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AVoxelWorld> OwningWorld;
+	
 	FIntVector Location;
 	bool IsLoaded;
 
@@ -45,9 +45,6 @@ protected:
 	TMap<FIntVector4, FVoxel> VoxelQuads; //A map that associates to a coordinate and a direction the voxel at that location if it should have a face in the given direction
 
 	static bool IsInsideChunk(FIntVector BlockLocation);
-	
-	void RemoveBlockFromBlockData(FIntVector3 BlockLocation);
-	void SetBlockInBlockData(FIntVector3 BlockLocation, FVoxel BlockVoxel);
 
 public:	
 	// Called every frame

@@ -48,6 +48,9 @@ public:
 	
 	void SaveVoxelWorld();
 
+	UFUNCTION(NetMulticast, Reliable, BlueprintCallable)
+	void DestroyBlockAt(FVector BlockWorldLocation);
+
 private:
 
 	TMap<FIntVector, EChunkState> ChunkStates;
@@ -55,7 +58,7 @@ private:
 	TSet<FIntVector> ChunksToSave;
 	TSet<FIntVector> RegionsToSave;
 
-	TMap<FIntVector, TMap<FIntVector, FChunkData>> LoadedRegions; //Map of all the regions that are currently loaded in memory
+	TMap<FIntVector, TMap<FIntVector, FChunkData>> LoadedRegions; //Map of all the regions that are currently loaded in memory, in each region the chunks are located in absolute chunk coordinates
 
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc> GeneratedChunksToLoadInGame;
 	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc> ChunkQuadsToLoad;

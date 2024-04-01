@@ -7,7 +7,7 @@
 #include "VoxelWorldDataSaveGame.h"
 #include "Kismet/GameplayStatics.h"
 #include "VoxelChunkThreadingUtilities.h"
-#include "PhysicalChunk.h"
+#include "Chunk.h"
 
 // Sets default values
 AVoxelWorld::AVoxelWorld()
@@ -269,7 +269,7 @@ void AVoxelWorld::IterateChunkUnloading(FVector PlayerPosition)
 
 }
 
-bool AVoxelWorld::IsChunkLoaded(FIntVector ChunkLocation)
+bool AVoxelWorld::IsChunkLoaded(FIntVector ChunkLocation) //tests if the chunk is marked as loaded in the chunkstates map
 {
 	if (ChunkStates.Contains(ChunkLocation))
 	{
@@ -446,6 +446,38 @@ void AVoxelWorld::SaveVoxelWorld()
 	}
 
 	ChunksToSave.Empty();
+}
+
+void AVoxelWorld::DestroyBlockAt_Implementation(FVector BlockWorldLocation)
+{
+	//Check if the chunk affected by the edit is loaded
+	const auto AffectedChunkLocation = FIntVector((BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize*ChunkSize));
+
+	if (IsChunkLoaded(AffectedChunkLocation))
+	{
+		const auto ChunkPtr = GetChunkAt(AffectedChunkLocation);
+		if (ChunkPtr)
+		{
+			ChunkPtr->DestroyBlockAt(BlockWorldLocation);
+		}
+		//If the chunk is marked as loaded but no actor is registered for it, it means the chunk is actually empty and there is nothing to remove
+	}
+	else
+	{
+		const auto RegionDataPtr = GetRegionSavedData(GetRegionOfChunk(AffectedChunkLocation));
+		
+		if (RegionDataPtr)
+		{
+			const auto BlockLocationInChunk = FIntVector(BlockWorldLocation/DefaultVoxelSize) - AffectedChunkLocation*ChunkSize;
+			LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)][AffectedChunkLocation].RemoveVoxel(BlockLocationInChunk, ChunkSize);
+		}
+		else
+		{
+			//TODO: find a way to handle this case
+		}
+	}
+	//Otherwise, just edit the disk region data
+	
 }
 
 FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
