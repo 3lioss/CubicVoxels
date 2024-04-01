@@ -9,6 +9,4 @@ It is an **Unreal Engine 5 plugin** that allows you to **procedurally generate i
   
   -World saving and loading from disk
   
-  -Sending the world over the network
-
 This code is distributed under a **GNU GPLv3 licence**
