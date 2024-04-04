@@ -6,7 +6,6 @@
 #include "FVoxelThread.h"
 #include "VoxelWorldDataSaveGame.h"
 #include "Kismet/GameplayStatics.h"
-#include "VoxelChunkThreadingUtilities.h"
 #include "Chunk.h"
 
 // Sets default values
@@ -16,8 +15,8 @@ AVoxelWorld::AVoxelWorld()
 	PrimaryActorTick.bCanEverTick = true;
 	
 
-	DefaultViewDistance = 32;
-	FarViewDistance = 32;
+	DefaultViewDistance = 16;
+	FarViewDistance = 16;
 	ViewLayers = TArray<TSet<FIntVector>>();
 	ViewLayers.SetNum(FarViewDistance + 1);
 
@@ -451,7 +450,8 @@ void AVoxelWorld::SaveVoxelWorld()
 void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 {
 	//Check if the chunk affected by the edit is loaded
-	const auto AffectedChunkLocation = FIntVector((BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize*ChunkSize));
+	const auto temp = (BlockWorldLocation - this->GetActorLocation())/(DefaultVoxelSize*ChunkSize*this->GetActorScale().X);
+	const auto AffectedChunkLocation = FIntVector(FMath::Floor(temp.X), FMath::Floor(temp.Y), FMath::Floor(temp.Z));
 
 	if (IsChunkLoaded(AffectedChunkLocation))
 	{
