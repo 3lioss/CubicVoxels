@@ -7,11 +7,9 @@
 #include "VoxelStructs.h"
 #include "VoxelChunkThreadingUtilities.h"
 #include "FVoxelThread.h"
-#include "VoxelWorldDataSaveGame.h"
-#include "BasePluginValues.h"
 #include "VoxelWorld.generated.h"
 
-class APhysicalChunk;
+class AChunk;
 class UProceduralMeshComponent; 
 
 enum class EChunkState;
@@ -27,9 +25,7 @@ public:
 
 	int32 DefaultViewDistance;
 	int32 FarViewDistance;
-
-	TObjectPtr<USceneComponent> RootComponent;
-
+	
 	void IterateChunkLoading(FVector PlayerPosition);
 	void IterateChunkMeshing();
 	void IterateChunkUnloading(FVector PlayerPosition);
@@ -43,7 +39,7 @@ public:
 
 	bool IsChunkLoaded(FIntVector ChunkLocation);
 	TMap<FIntVector, FChunkData>* GetRegionSavedData(FIntVector RegionLocation);
-	TObjectPtr<APhysicalChunk> GetChunkAt(FIntVector ChunkLocation);
+	TObjectPtr<AChunk> GetChunkAt(FIntVector ChunkLocation);
 	void SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData);
 	
 	void SaveVoxelWorld();
@@ -54,7 +50,7 @@ public:
 private:
 
 	TMap<FIntVector, EChunkState> ChunkStates;
-	TMap<FIntVector, TObjectPtr<APhysicalChunk>> ChunkActorsMap;
+	TMap<FIntVector, TObjectPtr<AChunk>> ChunkActorsMap;
 	TSet<FIntVector> ChunksToSave;
 	TSet<FIntVector> RegionsToSave;
 
