@@ -11,13 +11,13 @@ class UProceduralMeshComponent;
 struct FMeshData;
 
 UCLASS()
-class CUBICVOXELS_API APhysicalChunk : public AActor
+class CUBICVOXELS_API AChunk : public AActor
 {
 	GENERATED_BODY()
 	
 public:	
 	// Sets default values for this actor's properties
-	APhysicalChunk();
+	AChunk();
 
 	void LoadBlocks(TSharedPtr<FChunkData> InputVoxelData);
 	void AddQuads(TMap<FIntVector4, FVoxel> VoxelQuadsToAdd);

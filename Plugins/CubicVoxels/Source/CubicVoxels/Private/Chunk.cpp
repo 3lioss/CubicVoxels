@@ -10,7 +10,7 @@
 #include "Kismet/GameplayStatics.h"
 
 // Sets default values
-APhysicalChunk::APhysicalChunk()
+AChunk::AChunk()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
@@ -24,44 +24,44 @@ APhysicalChunk::APhysicalChunk()
 	
 }
 
-void APhysicalChunk::LoadBlocks(TSharedPtr<FChunkData> InputVoxelData)
+void AChunk::LoadBlocks(TSharedPtr<FChunkData> InputVoxelData)
 {
 	BlocksData = InputVoxelData;
 }
 
-void APhysicalChunk::AddQuads(TMap<FIntVector4, FVoxel> VoxelQuadsToAdd)
+void AChunk::AddQuads(TMap<FIntVector4, FVoxel> VoxelQuadsToAdd)
 {
 	VoxelQuads.Append(VoxelQuadsToAdd);
 }
 
-bool APhysicalChunk::HasQuadAt(FIntVector4 QuadLocation)
+bool AChunk::HasQuadAt(FIntVector4 QuadLocation)
 {
 		return VoxelQuads.Contains(QuadLocation);
 }
 
-void APhysicalChunk::RemoveQuad(FIntVector4 Quad)
+void AChunk::RemoveQuad(FIntVector4 Quad)
 {
 	VoxelQuads.Remove(Quad);
 }
 
 // Called when the game starts or when spawned
-void APhysicalChunk::BeginPlay()
+void AChunk::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-bool APhysicalChunk::IsInsideChunk(FIntVector BlockLocation)
+bool AChunk::IsInsideChunk(FIntVector BlockLocation)
 {
 	return (BlockLocation.X < ChunkSize && BlockLocation.Y < ChunkSize && BlockLocation.X < ChunkSize && BlockLocation.X >= 0 && BlockLocation.Y >= 0 && BlockLocation.Z >= 0);
 }
 
 // Called every frame
-void APhysicalChunk::Tick(float DeltaTime)
+void AChunk::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 }
 
-void APhysicalChunk::SaveChunkDataToDisk()
+void AChunk::SaveChunkDataToDisk()
 {
 	auto SaveObject = Cast<UVoxelWorldDataSaveGame>(UGameplayStatics::CreateSaveGameObject(UVoxelWorldDataSaveGame::StaticClass()));
 
@@ -85,7 +85,7 @@ void APhysicalChunk::SaveChunkDataToDisk()
 }
 
 
-void APhysicalChunk::RenderChunk(float VoxelSize)
+void AChunk::RenderChunk(float VoxelSize)
 {
 	const  FVector localBlockVertexData[8] = {
 		FVector(1,1,1),
@@ -179,7 +179,7 @@ void APhysicalChunk::RenderChunk(float VoxelSize)
 
 }
 
-void APhysicalChunk::DestroyBlockAt(FVector BlockWorldLocation)
+void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 {
 	auto BlockLocation = FIntVector( (BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize) );
 
@@ -238,15 +238,12 @@ void APhysicalChunk::DestroyBlockAt(FVector BlockWorldLocation)
 			}
 		}
 	}
-		
-	//RemoveBlockFromBlockData(BlockLocation);
 	BlocksData->RemoveVoxel(BlockLocation);
+	RenderChunk(DefaultVoxelSize);
 	
-	RenderChunk(DefaultVoxelSize);	
-
 }
 
-void APhysicalChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
+void AChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 {
 	auto BlockLocation = FIntVector( (BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize) );
 

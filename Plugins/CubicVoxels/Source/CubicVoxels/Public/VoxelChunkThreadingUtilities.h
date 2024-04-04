@@ -26,26 +26,23 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 {
 	auto StartTime = FDateTime::UtcNow(); 
 	
-	//Create the blocks three-dimensional array
-	const TUniquePtr<TArray< TArray<TArray<FVoxel>>>> ChunkBlocksPtr(new TArray< TArray<TArray<FVoxel>>>);
-	const TSharedPtr<FChunkData> CompressedChunkBlocksPtr(new FChunkData);
-	ChunkBlocksPtr->SetNum(ChunkSize);
+	//Create the variable that will store voxel data
+	
+	const TSharedPtr<FChunkData> ChunkDataPtr(new FChunkData);
 
 	//Fill the arrays with the chunk's voxels
-	int32 BlockCounter = 0;
+	//int32 BlockCounter = 0;
 	for (int32 x = 0; x < ChunkSize; x++)
 	{
-		(*ChunkBlocksPtr)[x].SetNum(ChunkSize);
 		for (int32 y = 0; y < ChunkSize; y++)
 		{
-			(*ChunkBlocksPtr)[x][y].SetNum(ChunkSize);
 			for (int32 z = 0; z < ChunkSize; z++)
 			{
 				auto const Position = VoxelSize*FVector(x + ChunkSize*Coordinates.X, y + ChunkSize*Coordinates.Y , z + ChunkSize*Coordinates.Z);
 					
-				(*ChunkBlocksPtr)[x][y][z] = (*GenerationFunction)(Position);
+				ChunkDataPtr->SetVoxel(x,y,z, (*GenerationFunction)(Position));
 
-				if (x ==0 && y==0 && z==0)
+				/*if (x ==0 && y==0 && z==0)
 				{
 					(CompressedChunkBlocksPtr->CompressedChunkData).Add(MakeStack( (*ChunkBlocksPtr)[0][0][0], 1));
 				}
@@ -65,7 +62,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 				if (  (*ChunkBlocksPtr)[x][y][z] != CompressedChunkBlocksPtr->GetVoxelAt(FIntVector(x,y,z)))
 				{
 					UE_LOG(LogTemp, Error, TEXT("There is a compression or decompression problem"));
-				}
+				}*/
 					
 			}
 		}
@@ -139,7 +136,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 			for (int z = 0; z < ChunkSize; ++z)
 			{
 				
-				if ((*ChunkBlocksPtr)[x][y][z].VoxelType != "Air" )
+				if (ChunkDataPtr->GetVoxelAt(x,y,z).VoxelType != "Air" ) //TODO: replace with a more robust test
 				{
 					const FIntVector Directions[6] = {
 						FIntVector(x+1,y,z),
@@ -154,9 +151,9 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 					{
 						if (!(Directions[i].X < 0 || Directions[i].X >= ChunkSize || Directions[i].Y < 0 || Directions[i].Y >= ChunkSize || Directions[i].Z < 0 || Directions[i].Z >= ChunkSize)) 
 						{
-							if ((*ChunkBlocksPtr)[Directions[i].X][Directions[i].Y][Directions[i].Z].IsTransparent == true && ((*ChunkBlocksPtr)[Directions[i].X][Directions[i].Y][Directions[i].Z] != (*ChunkBlocksPtr)[x][y][z]) ) 
+							if (ChunkDataPtr->GetVoxelAt(Directions[i]).IsTransparent == true && ChunkDataPtr->GetVoxelAt(Directions[i]) != ChunkDataPtr->GetVoxelAt(x,y,z) ) 
 							{
-								QuadsData.Add(FIntVector4(x,y,z,i), (*ChunkBlocksPtr)[x][y][z]);
+								QuadsData.Add(FIntVector4(x,y,z,i), ChunkDataPtr->GetVoxelAt(x,y,z));
 							}
 						}
 					}
@@ -168,7 +165,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 	UE_LOG(LogTemp, Warning, TEXT("Time taken to mesh: %f"), TimeElapsedInMs);
 
 	ChunkQuadsToLoad->Enqueue(MakeTuple(Coordinates, QuadsData));
-	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, CompressedChunkBlocksPtr));
+	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, ChunkDataPtr));
 }
 
 static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad, float VoxelSize, TSharedPtr<FChunkData> CompressedChunkBlocksPtr)

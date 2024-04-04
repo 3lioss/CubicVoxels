@@ -44,7 +44,7 @@ AVoxelWorld::AVoxelWorld()
 	SetRootComponent(RootComponent);
 	
 	ChunkStates = TMap<FIntVector, EChunkState>();
-	ChunkActorsMap = TMap<FIntVector, TObjectPtr<APhysicalChunk>>();
+	ChunkActorsMap = TMap<FIntVector, TObjectPtr<AChunk>>();
 	ChunksToUnloadOnGivenTick = TArray<FIntVector>();
 
 	WorldGenerationFunction = &DefaultGenerateBlockAt;
@@ -144,7 +144,7 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 		if ( !( DataToLoad.Get<1>()->CompressedChunkData.Num() == 1 && DataToLoad.Get<1>()->CompressedChunkData[0].Voxel.VoxelType == "Air") )
 		{
 			//Spawn the chunk actor
-			const TObjectPtr<APhysicalChunk> NewChunk = GetWorld()->SpawnActor<APhysicalChunk>();
+			const TObjectPtr<AChunk> NewChunk = GetWorld()->SpawnActor<AChunk>();
 
 			NewChunk->OwningWorld = this;
 			NewChunk->VoxelCharacteristicsData = VoxelPhysicalCharacteristicsTable;
@@ -321,7 +321,7 @@ TMap<FIntVector, FChunkData>* AVoxelWorld::GetRegionSavedData(FIntVector ChunkRe
 	
 }
 
-TObjectPtr<APhysicalChunk> AVoxelWorld::GetChunkAt(FIntVector ChunkLocation)
+TObjectPtr<AChunk> AVoxelWorld::GetChunkAt(FIntVector ChunkLocation)
 {
 	if(ChunkActorsMap.Contains(ChunkLocation))
 	{
@@ -459,7 +459,7 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 		const auto ChunkPtr = GetChunkAt(AffectedChunkLocation);
 		if (ChunkPtr)
 		{
-			ChunkPtr->DestroyBlockAt(BlockWorldLocation);
+			ChunkPtr->DestroyBlockAt(BlockWorldLocation); //TODO: correct the problem with this function (appears to target the wrong chunk)
 		}
 		//If the chunk is marked as loaded but no actor is registered for it, it means the chunk is actually empty and there is nothing to remove
 	}
