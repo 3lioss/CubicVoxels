@@ -36,6 +36,7 @@ public:
 	FIntVector Location;
 	bool IsLoaded;
 
+	UPROPERTY()
 	class UDataTable* VoxelCharacteristicsData;
 	
 protected:
@@ -51,8 +52,9 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	
 	TSharedPtr<FChunkData> BlocksData;
+	UPROPERTY()
 	TObjectPtr<UProceduralMeshComponent> Mesh;
-	TObjectPtr<UStaticMeshComponent> LoadingCube;
+	//TObjectPtr<UStaticMeshComponent> LoadingCube;
 
 public:
 	void SaveChunkDataToDisk(); //Temporary, in final system we should rather save regions of chunks

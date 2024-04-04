@@ -1,7 +1,5 @@
 ﻿// .cpp
 #include "FVoxelThread.h"
-#include "VoxelChunkThreadingUtilities.h"
-#include "VoxelStructs.h"
 
 bool FVoxelThread::Init() {
 	/* Should the thread start? */
