@@ -48,8 +48,8 @@ public:
 	
 	void SaveVoxelWorld();
 
-	UFUNCTION(NetMulticast, Reliable, BlueprintCallable)
-	void DestroyBlockAt(FVector BlockWorldLocation);
+	UFUNCTION(BlueprintCallable)
+	void DestroyBlockAt(FVector BlockWorldLocation); //This functions needs to be called on the server
 
 private:
 
@@ -90,43 +90,7 @@ public:
 	virtual void Tick(float DeltaTime) override; 
 
 };
-/*
-class FVoxelChunkInsidesCookingAsyncTask : public FNonAbandonableTask //Asynchronous task that sets up the blocks data of a chunk and generates its insides' quad data
-{
-	FIntVector TaskCoordinates;
-	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* TaskPreCookedChunksToLoadBlockDataPtr;
-	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* TaskChunkQuadsToLoadPtr;
-	int32 TaskChunkSize;
-	float TaskVoxelSize;
-	FVoxel (*TaskGenerationFunction) (FVector);
- 
-public:
-	//Default constructor
-	FVoxelChunkInsidesCookingAsyncTask(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockDataPtr, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoadPtr, const int32 InputChunkSize, float VoxelSize, FVoxel (*GenerationFunction) (FVector))
-	{
-		this->TaskCoordinates = Coordinates;
-		this->TaskPreCookedChunksToLoadBlockDataPtr = PreCookedChunksToLoadBlockDataPtr;
-		this->TaskChunkQuadsToLoadPtr = ChunkQuadsToLoadPtr;
-		this->TaskChunkSize = InputChunkSize;
-		this->TaskVoxelSize = VoxelSize;
-		this->TaskGenerationFunction = GenerationFunction;
-		
-	}
- 
-	//This function is needed from the API of the engine. 
-	//My guess is that it provides necessary information
-	//about the thread that we occupy and the progress of our task
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(PrimeCalculationAsyncTask, STATGROUP_ThreadPoolAsyncTasks);
-	}
- 
-	//This function is executed when we tell our task to execute
-	void DoWork()
-	{
-		LoadChunkInsides( TaskCoordinates,TaskPreCookedChunksToLoadBlockDataPtr, TaskChunkQuadsToLoadPtr, TaskChunkSize, TaskVoxelSize, TaskGenerationFunction);
-	}
-};*/
+
 
 class FVoxelChunkSideCookingAsyncTask : public FNonAbandonableTask //Asynchronous task that generates a chunk's inside's quad data
 {
@@ -156,6 +120,6 @@ public:
 	//This function is executed when we tell our task to execute
 	void DoWork()
 	{
-		ComputeChunkSideFacesFromData( TaskChunkToContinueLoadingBlocks, TaskNeighbourChunkBlocks, TaskDirectionIndex, TaskChunkQuadsToLoad, ChunkSize,  TaskChunkToContinueLoadingCoordinates);
+		ComputeChunkSideFacesFromData( TaskChunkToContinueLoadingBlocks, TaskNeighbourChunkBlocks, TaskDirectionIndex, TaskChunkQuadsToLoad,  TaskChunkToContinueLoadingCoordinates);
 	}
 };

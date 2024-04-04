@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "BasePluginValues.h"
 #include "ProceduralMeshComponent.h" 
 #include "Engine/DataTable.h"
 #include "VoxelStructs.generated.h"
@@ -78,65 +79,97 @@ struct FChunkData
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(SaveGame)
-	TArray<FVoxelStack> ChunkData;
+	bool IsCompressed = true; //TODO: use this boolean as a necessary condition for saving on disk
 
-	void RemoveVoxel(FIntVector3 VoxelLocation,int32 ChunkSize){
+	TArray<FVoxel> UncompressedChunkData;
+
+	UPROPERTY(SaveGame)
+	TArray<FVoxelStack> CompressedChunkData;
+
+	FVoxel GetVoxelAt(FIntVector IntLocation){ //Function to manipulate compressed chunk data //TODO: move this code into a method of FChunkData and replace all usages of it with the method
+
+		if (IsCompressed)
+		{
+			const int32 BlockIndex = IntLocation.X*ChunkSize*ChunkSize + IntLocation.Y*ChunkSize + IntLocation.Z ;
+	
+			int32 Counter = -1;
+			int32 i = 0;
+			while (Counter + CompressedChunkData[i].StackSize < BlockIndex)
+			{
+				Counter += CompressedChunkData[i].StackSize;
+				i += 1;
+				if (i >= CompressedChunkData.Num())
+				{
+					FVoxel Temp;
+					Temp.VoxelType = "Error";
+					return Temp;
+				}
+			}
+			return CompressedChunkData[i].Voxel;
+		}
+		else
+		{
+			return UncompressedChunkData[IntLocation.X*ChunkSize*ChunkSize + IntLocation.Y*ChunkSize +IntLocation.Z];
+		}
+		
+	}
+
+	void RemoveVoxel(FIntVector3 VoxelLocation){
 	
 		auto BlockIndex = VoxelLocation.X*ChunkSize*ChunkSize + VoxelLocation.Y*ChunkSize + VoxelLocation.Z;
 
 		int32 i = 0;
 	
-		while (ChunkData[i].StackSize - 1 < BlockIndex)
+		while (CompressedChunkData[i].StackSize - 1 < BlockIndex)
 		{
-			BlockIndex -= ChunkData[i].StackSize;
+			BlockIndex -= CompressedChunkData[i].StackSize;
 			i += 1;
 		}
 	
 	
-		if (ChunkData[i].Voxel == DefaultVoxel)
+		if (CompressedChunkData[i].Voxel == DefaultVoxel)
 		{
 			if (BlockIndex == 0)
 			{
-				ChunkData[i].StackSize -= 1;
-				ChunkData.Insert(MakeStack(DefaultVoxel, 1), i);
+				CompressedChunkData[i].StackSize -= 1;
+				CompressedChunkData.Insert(MakeStack(DefaultVoxel, 1), i);
 			}
 			else
 			{
-				if (BlockIndex == ChunkData[i].StackSize - 1)
+				if (BlockIndex == CompressedChunkData[i].StackSize - 1)
 				{
-					if (i+1 < ChunkData.Num())
+					if (i+1 < CompressedChunkData.Num())
 					{
-						if (ChunkData[i+1].Voxel == DefaultVoxel)
+						if (CompressedChunkData[i+1].Voxel == DefaultVoxel)
 						{
-							ChunkData[i].StackSize -= 1;
-							ChunkData[i+1].StackSize += 1;
+							CompressedChunkData[i].StackSize -= 1;
+							CompressedChunkData[i+1].StackSize += 1;
 						}
 						else
 						{
-							ChunkData[i].StackSize -= 1;
-							ChunkData.Insert(MakeStack(DefaultVoxel, 1), i+1);
+							CompressedChunkData[i].StackSize -= 1;
+							CompressedChunkData.Insert(MakeStack(DefaultVoxel, 1), i+1);
 						}
 					}
 					else
 					{
-						ChunkData[i].StackSize -= 1;
-						ChunkData.Add(MakeStack(DefaultVoxel, 1));
+						CompressedChunkData[i].StackSize -= 1;
+						CompressedChunkData.Add(MakeStack(DefaultVoxel, 1));
 					}
 				}
 				else
 				{
-					const auto Temp = ChunkData[i].StackSize;
-					ChunkData[i].StackSize = BlockIndex;
-					if (i+1 < ChunkData.Num())
+					const auto Temp = CompressedChunkData[i].StackSize;
+					CompressedChunkData[i].StackSize = BlockIndex;
+					if (i+1 < CompressedChunkData.Num())
 					{
-						ChunkData.Insert(MakeStack(ChunkData[i].Voxel, Temp - BlockIndex - 1), i+1);
-						ChunkData.Insert(MakeStack(DefaultVoxel, 1), i+1);
+						CompressedChunkData.Insert(MakeStack(CompressedChunkData[i].Voxel, Temp - BlockIndex - 1), i+1);
+						CompressedChunkData.Insert(MakeStack(DefaultVoxel, 1), i+1);
 					}
 					else
 					{
-						ChunkData.Add(MakeStack(DefaultVoxel, 1));
-						ChunkData.Add(MakeStack(ChunkData[i].Voxel, Temp - BlockIndex - 1));
+						CompressedChunkData.Add(MakeStack(DefaultVoxel, 1));
+						CompressedChunkData.Add(MakeStack(CompressedChunkData[i].Voxel, Temp - BlockIndex - 1));
 					}
 				}
 			
@@ -144,66 +177,79 @@ struct FChunkData
 		}
 		}
 
-	void SetVoxel(FIntVector3 VoxelLocation, FVoxel Voxel, int32 ChunkSize)
+	void SetVoxel(FIntVector3 VoxelLocation, FVoxel Voxel)
 	{
-		auto BlockIndex = VoxelLocation.X*ChunkSize*ChunkSize + VoxelLocation.Y*ChunkSize + VoxelLocation.Z;
 
-		int32 i = 0;
-	
-		while (ChunkData[i].StackSize - 1 < BlockIndex)
+		if (IsCompressed)
 		{
-			BlockIndex -= (ChunkData)[i].StackSize;
-			i += 1;
-		}
+			auto BlockIndex = VoxelLocation.X*ChunkSize*ChunkSize + VoxelLocation.Y*ChunkSize + VoxelLocation.Z;
+
+			int32 i = 0;
 	
-	
-		if ((ChunkData)[i].Voxel != Voxel )
-		{
-			if (BlockIndex == 0)
+			while (CompressedChunkData[i].StackSize - 1 < BlockIndex)
 			{
-				(ChunkData)[i].StackSize -= 1;
-				ChunkData.Insert(MakeStack(Voxel, 1), i);
+				BlockIndex -= (CompressedChunkData)[i].StackSize;
+				i += 1;
 			}
-			else
+	
+	
+			if ((CompressedChunkData)[i].Voxel != Voxel )
 			{
-				if (BlockIndex == (ChunkData)[i].StackSize - 1)
+				if (BlockIndex == 0)
 				{
-					if (i+1 < ChunkData.Num())
-					{
-						if ((ChunkData)[i+1].Voxel == Voxel )
-						{
-							(ChunkData)[i].StackSize -= 1;
-							(ChunkData)[i+1].StackSize += 1;
-						}
-						else
-						{
-							(ChunkData)[i].StackSize -= 1;
-							ChunkData.Insert(MakeStack(Voxel, 1), i+1);
-						}
-					}
-					else
-					{
-						(ChunkData)[i].StackSize -= 1;
-						ChunkData.Add(MakeStack(Voxel, 1));
-					}
+					(CompressedChunkData)[i].StackSize -= 1;
+					CompressedChunkData.Insert(MakeStack(Voxel, 1), i);
 				}
 				else
 				{
-					const auto Temp = (ChunkData)[i].StackSize;
-					(ChunkData)[i].StackSize = BlockIndex;
-					if (i+1 < ChunkData.Num())
+					if (BlockIndex == (CompressedChunkData)[i].StackSize - 1)
 					{
-						ChunkData.Insert(MakeStack((ChunkData)[i].Voxel, Temp - BlockIndex - 1), i+1);
-						ChunkData.Insert(MakeStack(Voxel, 1), i+1);
+						if (i+1 < CompressedChunkData.Num())
+						{
+							if ((CompressedChunkData)[i+1].Voxel == Voxel )
+							{
+								(CompressedChunkData)[i].StackSize -= 1;
+								(CompressedChunkData)[i+1].StackSize += 1;
+							}
+							else
+							{
+								(CompressedChunkData)[i].StackSize -= 1;
+								CompressedChunkData.Insert(MakeStack(Voxel, 1), i+1);
+							}
+						}
+						else
+						{
+							(CompressedChunkData)[i].StackSize -= 1;
+							CompressedChunkData.Add(MakeStack(Voxel, 1));
+						}
 					}
 					else
 					{
-						ChunkData.Add(MakeStack(Voxel, 1));
-						ChunkData.Add(MakeStack((ChunkData)[i].Voxel, Temp - BlockIndex - 1));
+						const auto Temp = (CompressedChunkData)[i].StackSize;
+						(CompressedChunkData)[i].StackSize = BlockIndex;
+						if (i+1 < CompressedChunkData.Num())
+						{
+							CompressedChunkData.Insert(MakeStack((CompressedChunkData)[i].Voxel, Temp - BlockIndex - 1), i+1);
+							CompressedChunkData.Insert(MakeStack(Voxel, 1), i+1);
+						}
+						else
+						{
+							CompressedChunkData.Add(MakeStack(Voxel, 1));
+							CompressedChunkData.Add(MakeStack((CompressedChunkData)[i].Voxel, Temp - BlockIndex - 1));
+						}
 					}
 				}
 			}
 		}
+		else
+		{
+			if (UncompressedChunkData.Num() == 0)
+			{
+				UncompressedChunkData.SetNum(ChunkSize*ChunkSize*ChunkSize);
+			}
+			UncompressedChunkData[VoxelLocation.X*ChunkSize*ChunkSize + VoxelLocation.Y*ChunkSize + VoxelLocation.Z] = Voxel;
+		}
 	}
+		
 };
 

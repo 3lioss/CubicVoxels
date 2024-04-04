@@ -141,7 +141,7 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 	for (int32 Index = 0; Index < OrderedGeneratedChunksToLoadInGame.Num(); Index++)
 	{
 		const TTuple<FIntVector, TSharedPtr<FChunkData>> DataToLoad = OrderedGeneratedChunksToLoadInGame[Index];
-		if ( !( DataToLoad.Get<1>()->ChunkData.Num() == 1 && DataToLoad.Get<1>()->ChunkData[0].Voxel.VoxelType == "Air") )
+		if ( !( DataToLoad.Get<1>()->CompressedChunkData.Num() == 1 && DataToLoad.Get<1>()->CompressedChunkData[0].Voxel.VoxelType == "Air") )
 		{
 			//Spawn the chunk actor
 			const TObjectPtr<APhysicalChunk> NewChunk = GetWorld()->SpawnActor<APhysicalChunk>();
@@ -342,7 +342,7 @@ void AVoxelWorld::SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData
 		const auto CurrentChunkData = LoadedRegionData->Find(ChunkLocation);
 		if (CurrentChunkData)
 		{
-			CurrentChunkData->ChunkData = NewData.ChunkData;
+			CurrentChunkData->CompressedChunkData = NewData.CompressedChunkData;
 		}
 	}
 
@@ -365,7 +365,7 @@ void AVoxelWorld::SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData
 				const auto CurrentChunkData = LoadedRegionData->Find(ChunkLocation);
 				if (CurrentChunkData)
 				{
-					CurrentChunkData->ChunkData = NewData.ChunkData;
+					CurrentChunkData->CompressedChunkData = NewData.CompressedChunkData;
 				}
 			}
 			else
@@ -448,13 +448,14 @@ void AVoxelWorld::SaveVoxelWorld()
 	ChunksToSave.Empty();
 }
 
-void AVoxelWorld::DestroyBlockAt_Implementation(FVector BlockWorldLocation)
+void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 {
 	//Check if the chunk affected by the edit is loaded
 	const auto AffectedChunkLocation = FIntVector((BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize*ChunkSize));
 
 	if (IsChunkLoaded(AffectedChunkLocation))
 	{
+		
 		const auto ChunkPtr = GetChunkAt(AffectedChunkLocation);
 		if (ChunkPtr)
 		{
@@ -469,7 +470,7 @@ void AVoxelWorld::DestroyBlockAt_Implementation(FVector BlockWorldLocation)
 		if (RegionDataPtr)
 		{
 			const auto BlockLocationInChunk = FIntVector(BlockWorldLocation/DefaultVoxelSize) - AffectedChunkLocation*ChunkSize;
-			LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)][AffectedChunkLocation].RemoveVoxel(BlockLocationInChunk, ChunkSize);
+			LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)][AffectedChunkLocation].RemoveVoxel(BlockLocationInChunk);
 		}
 		else
 		{

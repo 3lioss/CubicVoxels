@@ -65,11 +65,11 @@ void APhysicalChunk::SaveChunkDataToDisk()
 {
 	auto SaveObject = Cast<UVoxelWorldDataSaveGame>(UGameplayStatics::CreateSaveGameObject(UVoxelWorldDataSaveGame::StaticClass()));
 
-	SaveObject->ChunkData.SetNum(BlocksData->ChunkData.Num());
-	for (int i = 0; i < BlocksData->ChunkData.Num(); i++)
+	SaveObject->ChunkData.SetNum(BlocksData->CompressedChunkData.Num());
+	for (int i = 0; i < BlocksData->CompressedChunkData.Num(); i++)
 	{
 		
-		SaveObject->ChunkData[i] = BlocksData->ChunkData[i];
+		SaveObject->ChunkData[i] = BlocksData->CompressedChunkData[i];
 	}
 	
 	FString ChunkCoordinates = "";
@@ -167,7 +167,7 @@ void APhysicalChunk::RenderChunk(float VoxelSize)
 		}
 		
 		Mesh->CreateMeshSection(VoxelType.Get<1>(), *VertexData.Find(CurrentSectionVoxelType), *TriangleData.Find(CurrentSectionVoxelType), *NormalsData.Find(CurrentSectionVoxelType), *UVData.Find(CurrentSectionVoxelType), *VertexColors.Find(CurrentSectionVoxelType), *Tangents.Find(CurrentSectionVoxelType), IsSectionSolid );
-
+		
 		const auto VoxelCharacteristics = VoxelCharacteristicsData->FindRow<FVoxelCharacteristics>(VoxelType.Get<0>(), TEXT("Retrieving recently created chunk section's material") );
 		if (VoxelCharacteristics)
 		{
@@ -216,7 +216,7 @@ void APhysicalChunk::DestroyBlockAt(FVector BlockWorldLocation)
 		VoxelQuads.Remove(FIntVector4(BlockLocation.X, BlockLocation.Y, BlockLocation.Z, i));
 		if (IsInsideChunk(Neighbors[i]))
 		{
-			const auto NeighboringVoxel = GetBlockAtInChunk(Neighbors[i], *BlocksData, ChunkSize);
+			const auto NeighboringVoxel = BlocksData->GetVoxelAt(Neighbors[i]);
 			if ((NeighboringVoxel != DefaultVoxel) && !VoxelQuads.Contains(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, OppositeDirections[i]))) // TO DO: modify this check to be able to delete transparent blocks
 			{
 				VoxelQuads.Add(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, OppositeDirections[i]), NeighboringVoxel);
@@ -227,7 +227,7 @@ void APhysicalChunk::DestroyBlockAt(FVector BlockWorldLocation)
 			if (OwningWorld->IsChunkLoaded(NeighboringChunks[i]))
 			{
 				const auto NeighborPtr = OwningWorld->GetChunkAt(NeighboringChunks[i]);
-				const auto NeighboringVoxel = GetBlockAtInChunk(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize), *(NeighborPtr->BlocksData), ChunkSize);
+				const auto NeighboringVoxel = NeighborPtr->BlocksData->GetVoxelAt(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize));
 				if ((NeighboringVoxel != DefaultVoxel) && !NeighborPtr->HasQuadAt(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, OppositeDirections[i])))
 				{
 					auto Temp = TMap<FIntVector4, FVoxel>();
@@ -240,11 +240,10 @@ void APhysicalChunk::DestroyBlockAt(FVector BlockWorldLocation)
 	}
 		
 	//RemoveBlockFromBlockData(BlockLocation);
-	BlocksData->RemoveVoxel(BlockLocation, ChunkSize);
+	BlocksData->RemoveVoxel(BlockLocation);
 	
 	RenderChunk(DefaultVoxelSize);	
 
-	//OwningWorld->SetChunkSavedData(Location, *BlocksData);
 }
 
 void APhysicalChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
@@ -285,7 +284,7 @@ void APhysicalChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 		
 		if (IsInsideChunk(Neighbors[i]))
 		{
-			const auto NeighboringVoxel = GetBlockAtInChunk(Neighbors[i], *BlocksData, ChunkSize);
+			const auto NeighboringVoxel = BlocksData->GetVoxelAt(Neighbors[i]);
 			if ((NeighboringVoxel == DefaultVoxel) && !VoxelQuads.Contains(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, i)) && (!BlockType.IsTransparent || (NeighboringVoxel == BlockType)))
 			{
 				VoxelQuads.Remove(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, OppositeDirections[i]));
@@ -296,7 +295,7 @@ void APhysicalChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 			if (OwningWorld->IsChunkLoaded(NeighboringChunks[i]))
 			{
 				const auto NeighborPtr = OwningWorld->GetChunkAt(NeighboringChunks[i]);
-				const auto NeighboringVoxel = GetBlockAtInChunk(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize), *(NeighborPtr->BlocksData), ChunkSize);
+				const auto NeighboringVoxel = NeighborPtr->BlocksData->GetVoxelAt(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize));
 				
 				if ((NeighboringVoxel == DefaultVoxel) && !NeighborPtr->HasQuadAt(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, i)) && (!BlockType.IsTransparent || (NeighboringVoxel == BlockType)))
 				{
@@ -307,11 +306,10 @@ void APhysicalChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 		}
 	}
 
-	BlocksData->SetVoxel(BlockLocation, BlockType, ChunkSize);
+	BlocksData->SetVoxel(BlockLocation, BlockType);
 	
 	RenderChunk(DefaultVoxelSize);
 	
-	//OwningWorld->SetChunkSavedData(Location, *BlocksData);	
 }
 
 

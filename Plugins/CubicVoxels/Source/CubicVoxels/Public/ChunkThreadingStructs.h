@@ -19,12 +19,12 @@ struct FChunkThreadedWorkOrderBase
 	{
 		if (OrderType == EChunkThreadedWorkOrderType::GenerationAndMeshing)
 		{
-			GenerateChunkDataAndComputeInsideFaces(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, ChunkSize, BlockSize, GenerationFunction);
+			GenerateChunkDataAndComputeInsideFaces(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, BlockSize, GenerationFunction);
 		}
 
 		if (OrderType == EChunkThreadedWorkOrderType::MeshingFromData)
 		{
-			ComputeInsideFacesOfLoadedChunk(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, ChunkSize, BlockSize, CompressedChunkBlocksPtr);
+			ComputeInsideFacesOfLoadedChunk(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, BlockSize, CompressedChunkBlocksPtr);
 		}
 	};
 
