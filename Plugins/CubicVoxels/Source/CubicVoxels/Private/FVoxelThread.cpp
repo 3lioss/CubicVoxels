@@ -24,13 +24,15 @@ uint32 FVoxelThread::Run() {
 			}
 		}
 
-		FChunkThreadedWorkOrderBase CurrentOrder;
+		FChunkThreadedWorkOrderBase CurrentOrder; //TODO: Replace this code by a max-finding function operating on TQueues
 		if (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder))
 		{
 			OrderedChunkThreadedWorkOrders.Add(CurrentOrder);
 		}			
 		else
 		{
+			auto StartTime = FDateTime::UtcNow();
+			
 			OrderedChunkThreadedWorkOrders.Sort([this](FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B)
 			{
 				return this->IsFartherToPlayer(A,B);
@@ -39,10 +41,12 @@ uint32 FVoxelThread::Run() {
 			if (!OrderedChunkThreadedWorkOrders.IsEmpty())
 			{
 				OrderedChunkThreadedWorkOrders.Pop().SendOrder();
-			}
+			} 
+
+			float TimeElapsedInMs = (FDateTime::UtcNow() - StartTime).GetTotalMilliseconds(); 
+			UE_LOG(LogTemp, Warning, TEXT("Time taken to order chunks: %f"), TimeElapsedInMs);
 
 		}
-		
 	}
 	return 0;
 }
