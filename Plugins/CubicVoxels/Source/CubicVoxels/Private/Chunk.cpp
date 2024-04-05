@@ -176,6 +176,8 @@ void AChunk::RenderChunk(float VoxelSize)
 		}
 		
 	}
+	//TODO: move this to asynchronous code
+	FChunkData::Compress(*BlocksData);
 }
 
 void AChunk::DestroyBlockAt(FVector BlockWorldLocation)

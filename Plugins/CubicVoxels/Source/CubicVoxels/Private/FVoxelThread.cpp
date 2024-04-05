@@ -42,7 +42,7 @@ uint32 FVoxelThread::Run() {
 			} 
 
 			float TimeElapsedInMs = (FDateTime::UtcNow() - StartTime).GetTotalMilliseconds(); 
-			UE_LOG(LogTemp, Warning, TEXT("Time taken to order chunks: %f"), TimeElapsedInMs);
+			//UE_LOG(LogTemp, Verbose, TEXT("Time taken to order chunks: %f"), TimeElapsedInMs);
 
 		}
 	}

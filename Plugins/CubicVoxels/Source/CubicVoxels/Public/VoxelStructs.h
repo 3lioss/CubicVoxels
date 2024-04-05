@@ -86,7 +86,6 @@ struct FChunkData
 	GENERATED_USTRUCT_BODY()
 
 	FThreadSafeBool IsCompressed = false; //TODO: use this boolean as a necessary condition for saving on disk
-
 	TArray<FVoxel> UncompressedChunkData;
 
 	UPROPERTY(SaveGame)
@@ -297,6 +296,51 @@ struct FChunkData
 			UncompressedChunkData = A.UncompressedChunkData;
 		}
 		return *this;
+	}
+
+	static bool Compress(FChunkData A) //returns true iff the chunk was successfully compressed
+	{
+		if(A.IsCompressed)
+		{
+			return false;
+		}
+		else //TODO: add mutex lock here to avoid unwanted accesses to the chunk data during
+		{
+			//UE_LOG(LogTemp, Warning, TEXT("Size before compression: %llu"), sizeof(A.UncompressedChunkData[0])*A.UncompressedChunkData.Num());
+			A.CompressedChunkData.Empty();
+			int32 BlockCounter = 0;
+
+			for (int32 x = 0; x < ChunkSize; x++)
+			{
+				for (int32 y = 0; y < ChunkSize; y++)
+				{
+					for (int32 z = 0; z < ChunkSize; z++)
+					{
+
+						if (x ==0 && y==0 && z==0)
+						{
+							A.CompressedChunkData.Add(MakeStack( A.UncompressedChunkData[0], 1));
+						}
+						else
+						{
+							if ( A.CompressedChunkData[BlockCounter].Voxel == A.UncompressedChunkData[x*ChunkSize*ChunkSize + y*ChunkSize + z] )
+							{
+								A.CompressedChunkData[BlockCounter].StackSize += 1;
+							}
+							else
+							{
+								A.CompressedChunkData.Add( MakeStack( A.UncompressedChunkData[x*ChunkSize*ChunkSize + y*ChunkSize + z], 1)  );
+								BlockCounter +=1;
+							}
+						}
+					}
+				}
+			}
+			A.IsCompressed = true;
+			A.UncompressedChunkData.Empty();
+			//UE_LOG(LogTemp, Warning, TEXT("Estimated size after compression: %llu"), sizeof(A.CompressedChunkData[0])*A.CompressedChunkData.Num());
+			return true;
+		}
 	}
 };
 
