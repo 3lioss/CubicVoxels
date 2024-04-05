@@ -304,7 +304,7 @@ struct FChunkData
 		{
 			return false;
 		}
-		else //TODO: add mutex lock here to avoid unwanted accesses to the chunk data during
+		else //TODO: add mutex lock here to avoid unwanted accesses to the chunk data during asynchronous compression
 		{
 			//UE_LOG(LogTemp, Warning, TEXT("Size before compression: %llu"), sizeof(A.UncompressedChunkData[0])*A.UncompressedChunkData.Num());
 			A.CompressedChunkData.Empty();

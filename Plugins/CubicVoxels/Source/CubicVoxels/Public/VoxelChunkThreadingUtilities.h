@@ -288,3 +288,4 @@ static void ComputeChunkSideFacesFromData(FChunkData* DataOfChunkToAddFacesTo, F
 	
 	OuputChunkQuadsQueue->Enqueue(MakeTuple(ChunkToAddFacesToCoordinates,SideQuadsData));
 }
+

@@ -15,23 +15,24 @@ AVoxelWorld::AVoxelWorld()
 	PrimaryActorTick.bCanEverTick = true;
 	
 
-	DefaultViewDistance = 16;
-	FarViewDistance = 16;
+	ViewDistance = 32;
+	VerticalViewDistance = 5;
+	
 	ViewLayers = TArray<TSet<FIntVector>>();
-	ViewLayers.SetNum(FarViewDistance + 1);
+	ViewLayers.SetNum(ViewDistance + 1);
 
 	//Initialize the list that gives the order in which chunks should be iterated
 	auto FirstViewLayer = TSet<FIntVector>();
 	FirstViewLayer.Add(FIntVector(0,0,0));
 	ViewLayers[0] = FirstViewLayer;
 	
-	for (int32 i = 0; i < FarViewDistance; i++)
+	for (int32 i = 0; i < ViewDistance; i++)
 	{
 		for (auto& LayerElement : ViewLayers[i])
 		{
 			for (auto& Offset : {FIntVector(1,0,0), FIntVector(-1,0,0), FIntVector(0,1,0), FIntVector(0,-1,0), FIntVector(0,0,1), FIntVector(0,0,-1)})
 			{
-				if ( /*abs((LayerElement + Offset).Z) < 5 && */ OneNorm(LayerElement + Offset) > OneNorm(LayerElement) )
+				if ( abs((LayerElement + Offset).Z) < VerticalViewDistance &&  OneNorm(LayerElement + Offset) > OneNorm(LayerElement) ) //To ponder...
 				{
 					ViewLayers[i+1].Add(LayerElement + Offset);
 				}
@@ -56,7 +57,7 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 	PlayerPositionUpdatesPtr->Enqueue(TTuple<FIntVector, float>(LoadingOrigin, GetGameTimeSinceCreation()));
 	//Logic for checking for every chunk in the vicinity of the player whether that chunk has been loaded, and if not load it
 	
-	for (int32 i = 0; i < FarViewDistance; i++)
+	for (int32 i = 0; i < ViewDistance; i++)
 	{
 		for (auto& Chunk : ViewLayers[i])
 		{
@@ -247,7 +248,7 @@ void AVoxelWorld::IterateChunkUnloading(FVector PlayerPosition)
 	for (auto& RegisteredChunkState : ChunkStates)
 	{
 		
-		if (RegisteredChunkState.Value == EChunkState::Loaded && !ChunksToSave.Contains(RegisteredChunkState.Key) && OneNorm(RegisteredChunkState.Key - LoadingOrigin) > FarViewDistance + 2 )
+		if (RegisteredChunkState.Value == EChunkState::Loaded && !ChunksToSave.Contains(RegisteredChunkState.Key) && OneNorm(RegisteredChunkState.Key - LoadingOrigin) > ViewDistance + 2 )
 		{
 			ChunkStates[RegisteredChunkState.Key] = EChunkState::Unloading;
 			ChunksToUnloadOnGivenTick.Add(RegisteredChunkState.Key);
@@ -482,7 +483,7 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 
 FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
 {
-	if ((Position.Z < 1000*sin(sqrt((Position.X * Position.X) + (Position.Y * Position.Y))/1000 ) ) )
+	if ((Position.Z < 10000*FMath::PerlinNoise2D(FVector2d(Position.X, Position.Y)/10000 ) ) )
 	{
 		FVoxel Temp;
 		Temp.VoxelType = "Stone";
