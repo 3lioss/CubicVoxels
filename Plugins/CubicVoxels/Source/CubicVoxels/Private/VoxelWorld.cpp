@@ -66,7 +66,6 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 				{
 					ChunkStates.Add(Chunk + LoadingOrigin, EChunkState::Loading);
 					//(new FAutoDeleteAsyncTask<FVoxelChunkInsidesCookingAsyncTask>(Chunk + LoadingOrigin, &PreCookedChunksToLoadBlockData, &ChunkQuadsToLoad, ChunkSize, DefaultVoxelSize, WorldGenerationFunction ))->StartBackgroundTask();
-
 					const auto RegionSavedData = GetRegionSavedData(GetRegionOfChunk(Chunk + LoadingOrigin) );
 					if (RegionSavedData)
 					{
