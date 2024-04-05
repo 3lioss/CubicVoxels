@@ -284,6 +284,19 @@ struct FChunkData
 			UncompressedChunkData[VoxelLocation.X*ChunkSize*ChunkSize + VoxelLocation.Y*ChunkSize + VoxelLocation.Z] = Voxel;
 		}
 	}
-		
+
+	FChunkData& operator=(FChunkData A) {
+		const bool IsCompressedCopy = A.IsCompressed;
+		IsCompressed = IsCompressedCopy;
+		if(IsCompressed)
+		{
+			CompressedChunkData = A.CompressedChunkData;
+		}
+		else
+		{
+			UncompressedChunkData = A.UncompressedChunkData;
+		}
+		return *this;
+	}
 };
 
