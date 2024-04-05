@@ -176,14 +176,12 @@ void AChunk::RenderChunk(float VoxelSize)
 		}
 		
 	}
-
 }
 
 void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 {
 	const auto temp = (BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize);
 	const auto BlockLocation = FIntVector(FMath::Floor(temp.X), FMath::Floor(temp.Y), FMath::Floor(temp.Z));
-	
 	
 	const FIntVector Neighbors[6] = {
 		FIntVector(BlockLocation.X+1,BlockLocation.Y,BlockLocation.Z),
@@ -247,8 +245,9 @@ void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 
 void AChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 {
-	auto BlockLocation = FIntVector( (BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize) );
-
+	auto RelativeLocation = (BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize);
+	const auto BlockLocation = FIntVector(FMath::Floor(RelativeLocation.X), FMath::Floor(RelativeLocation.Y), FMath::Floor(RelativeLocation.Z));
+	
 	const FIntVector Neighbors[6] = {
 		FIntVector(BlockLocation.X+1,BlockLocation.Y,BlockLocation.Z),
 		FIntVector(BlockLocation.X,BlockLocation.Y+1,BlockLocation.Z),

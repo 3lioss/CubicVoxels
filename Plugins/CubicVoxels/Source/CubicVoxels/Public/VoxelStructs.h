@@ -85,7 +85,7 @@ struct FChunkData
 {
 	GENERATED_USTRUCT_BODY()
 
-	bool IsCompressed = false; //TODO: use this boolean as a necessary condition for saving on disk
+	FThreadSafeBool IsCompressed = false; //TODO: use this boolean as a necessary condition for saving on disk
 
 	TArray<FVoxel> UncompressedChunkData;
 
