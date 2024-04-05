@@ -42,11 +42,15 @@ public:
 	TMap<FIntVector, FChunkData>* GetRegionSavedData(FIntVector RegionLocation);
 	TObjectPtr<AChunk> GetChunkAt(FIntVector ChunkLocation);
 	void SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData);
-	
+
+	UFUNCTION(BlueprintCallable)
 	void SaveVoxelWorld();
 
 	UFUNCTION(BlueprintCallable)
-	void DestroyBlockAt(FVector BlockWorldLocation); //This functions needs to be called on the server
+	void DestroyBlockAt(FVector BlockWorldLocation); //This function is intended to be multicasted in multiplayer
+
+	UFUNCTION(BlueprintCallable)
+	void SetBlockAt(FVector BlockWorldLocation, FVoxel Block); //This functions needs to be called on the server
 
 private:
 

@@ -481,6 +481,40 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 	
 }
 
+void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
+{
+	//Check if the chunk affected by the edit is loaded
+	const auto temp = (BlockWorldLocation - this->GetActorLocation())/(DefaultVoxelSize*ChunkSize*this->GetActorScale().X);
+	const auto AffectedChunkLocation = FIntVector(FMath::Floor(temp.X), FMath::Floor(temp.Y), FMath::Floor(temp.Z));
+
+	if (IsChunkLoaded(AffectedChunkLocation))
+	{
+		
+		const auto ChunkPtr = GetChunkAt(AffectedChunkLocation);
+		if (ChunkPtr)
+		{
+			ChunkPtr->SetBlockAt(BlockWorldLocation, Block); //TODO: correct the problem with this function (appears to target the wrong chunk)
+		}
+		//TODO: handle this case by creating a new chunk actor just to place block in
+	}
+	else
+	{
+		const auto RegionDataPtr = GetRegionSavedData(GetRegionOfChunk(AffectedChunkLocation));
+		
+		if (RegionDataPtr)
+		{
+			const auto BlockLocationInChunk = FIntVector(BlockWorldLocation/DefaultVoxelSize) - AffectedChunkLocation*ChunkSize;
+			LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)][AffectedChunkLocation].SetVoxel(BlockLocationInChunk, Block);
+		}
+		else
+		{
+			//TODO: find a way to handle this case
+		}
+	}
+	//Otherwise, just edit the disk region data
+	
+}
+
 FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
 {
 	if ((Position.Z < 10000*FMath::PerlinNoise2D(FVector2d(Position.X, Position.Y)/10000 ) ) )
@@ -536,7 +570,10 @@ void AVoxelWorld::BeginPlay()
 void AVoxelWorld::BeginDestroy()
 {
 	Super::BeginDestroy();
-	WorldGenerationThread->StartShutdown();
+	if (WorldGenerationThread)
+	{
+		WorldGenerationThread->StartShutdown();
+	}
 }
 
 
