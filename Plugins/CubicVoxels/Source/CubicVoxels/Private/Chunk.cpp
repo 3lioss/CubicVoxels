@@ -12,7 +12,7 @@
 // Sets default values
 AChunk::AChunk()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
 	Mesh = CreateDefaultSubobject<UProceduralMeshComponent>("Physical mesh");
@@ -36,7 +36,7 @@ void AChunk::AddQuads(TMap<FIntVector4, FVoxel> VoxelQuadsToAdd)
 
 bool AChunk::HasQuadAt(FIntVector4 QuadLocation)
 {
-		return VoxelQuads.Contains(QuadLocation);
+	return VoxelQuads.Contains(QuadLocation);
 }
 
 void AChunk::RemoveQuad(FIntVector4 Quad)
@@ -311,5 +311,3 @@ void AChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 	RenderChunk(DefaultVoxelSize);
 	
 }
-
-

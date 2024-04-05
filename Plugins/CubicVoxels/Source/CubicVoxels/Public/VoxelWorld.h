@@ -23,8 +23,9 @@ public:
 	// Sets default values for this actor's properties
 	AVoxelWorld();
 
-	int32 DefaultViewDistance;
-	int32 FarViewDistance;
+	int32 ViewDistance;
+	int32 VerticalViewDistance;
+
 	
 	void IterateChunkLoading(FVector PlayerPosition);
 	void IterateChunkMeshing();
