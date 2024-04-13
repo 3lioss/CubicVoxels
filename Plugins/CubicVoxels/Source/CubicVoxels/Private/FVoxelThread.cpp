@@ -40,8 +40,7 @@ uint32 FVoxelThread::Run() {
 			{
 				OrderedChunkThreadedWorkOrders.Pop().SendOrder();
 			} 
-
-			float TimeElapsedInMs = (FDateTime::UtcNow() - StartTime).GetTotalMilliseconds(); 
+			
 			//UE_LOG(LogTemp, Verbose, TEXT("Time taken to order chunks: %f"), TimeElapsedInMs);
 
 		}
@@ -57,12 +56,12 @@ void FVoxelThread::Stop() {
 	bShutdown = true;
 }
 
-TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Spsc>* FVoxelThread::GetGenerationOrdersQueue()
+TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* FVoxelThread::GetGenerationOrdersQueue()
 {
 	return &ChunkThreadedWorkOrdersQueue;
 }
 
-TQueue<TTuple<FIntVector, float>, EQueueMode::Spsc>* FVoxelThread::GetPlayerUpdatesQueue()
+TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc>* FVoxelThread::GetPlayerUpdatesQueue()
 {
 	return &PlayerPositionUpdates;
 }

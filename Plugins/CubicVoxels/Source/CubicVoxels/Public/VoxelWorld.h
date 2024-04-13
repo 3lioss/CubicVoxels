@@ -64,8 +64,8 @@ private:
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc> GeneratedChunksToLoadInGame;
 	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc> ChunkQuadsToLoad;
 
-	TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Spsc>* ChunkThreadedWorkOrdersQueuePtr;
-	TQueue<TTuple<FIntVector, float>, EQueueMode::Spsc>* PlayerPositionUpdatesPtr;
+	TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* ChunkThreadedWorkOrdersQueuePtr;
+	TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc>* PlayerPositionUpdatesPtr;
 
 	FIntVector GetRegionOfChunk(FIntVector ChunkCoordinates);
 

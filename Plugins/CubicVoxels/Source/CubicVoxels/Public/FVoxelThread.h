@@ -14,14 +14,14 @@ public:
 	virtual void Exit() override;
 	virtual void Stop() override;
 
-	TQueue< FChunkThreadedWorkOrderBase, EQueueMode::Spsc>* GetGenerationOrdersQueue( );
-	TQueue<TTuple<FIntVector, float>, EQueueMode::Spsc>* GetPlayerUpdatesQueue();
+	TQueue< FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* GetGenerationOrdersQueue( );
+	TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc>* GetPlayerUpdatesQueue();
 	
 	FRunnableThread* Thread;
 	bool bShutdown= false;
 	
-	TQueue< FChunkThreadedWorkOrderBase, EQueueMode::Spsc> ChunkThreadedWorkOrdersQueue;
-	TQueue<TTuple<FIntVector, float>, EQueueMode::Spsc> PlayerPositionUpdates;
+	TQueue< FChunkThreadedWorkOrderBase, EQueueMode::Mpsc> ChunkThreadedWorkOrdersQueue;
+	TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc> PlayerPositionUpdates;
 
 	void StartShutdown();
 
