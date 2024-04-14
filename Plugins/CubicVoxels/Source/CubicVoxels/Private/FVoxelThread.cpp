@@ -26,19 +26,28 @@ uint32 FVoxelThread::Run() {
 		if (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder))
 		{
 			OrderedChunkThreadedWorkOrders.Add(CurrentOrder);
+			//UE_LOG(LogTemp, Display, TEXT("Acquired order for chunk at %d, %d, %d"), CurrentOrder.ChunkLocation.X, CurrentOrder.ChunkLocation.Y, CurrentOrder.ChunkLocation.Z )
 		}			
 		else
 		{
 			auto StartTime = FDateTime::UtcNow();
 			
-			OrderedChunkThreadedWorkOrders.Sort([this](FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B)
-			{
-				return this->IsFartherToPlayer(A,B);
- 			}); // sort the pre-cooked chunks by distance to player
-			
 			if (!OrderedChunkThreadedWorkOrders.IsEmpty())
 			{
-				OrderedChunkThreadedWorkOrders.Pop().SendOrder();
+				//Retrieving the chunk closest to the player
+				auto NextOrder =  OrderedChunkThreadedWorkOrders[0];
+				int32 NextOrderIndex = 0;
+				for (int32 i = 0 ;	i < OrderedChunkThreadedWorkOrders.Num(); i++)
+				{
+					if (IsFartherToPlayer(NextOrder, OrderedChunkThreadedWorkOrders[i]))
+					{
+						NextOrder = OrderedChunkThreadedWorkOrders[i];
+						NextOrderIndex = i;
+					}
+				}
+				
+				NextOrder.SendOrder();
+				OrderedChunkThreadedWorkOrders.RemoveAt(NextOrderIndex);
 			} 
 			
 			//UE_LOG(LogTemp, Verbose, TEXT("Time taken to order chunks: %f"), TimeElapsedInMs);
