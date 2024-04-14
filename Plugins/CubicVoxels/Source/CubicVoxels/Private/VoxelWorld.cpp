@@ -63,8 +63,7 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 		{
 			if (!ChunkStates.Contains( Chunk + LoadingOrigin ))
 			{
-				if (IsInWorldGenerationBounds(LoadingOrigin))
-				{
+				
 					ChunkStates.Add(Chunk + LoadingOrigin, EChunkState::Loading);
 					//(new FAutoDeleteAsyncTask<FVoxelChunkInsidesCookingAsyncTask>(Chunk + LoadingOrigin, &PreCookedChunksToLoadBlockData, &ChunkQuadsToLoad, ChunkSize, DefaultVoxelSize, WorldGenerationFunction ))->StartBackgroundTask();
 					const auto RegionSavedData = GetRegionSavedData(GetRegionOfChunk(Chunk + LoadingOrigin) );
@@ -116,9 +115,6 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 						ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GenerationAndMeshing;
 						ChunkThreadedWorkOrdersQueuePtr->Enqueue(ChunkGenerationOrder);
 					}
-					
-				}
-				
 			}
 		}
 	}
@@ -543,10 +539,7 @@ FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
 	}
 }
 
-bool AVoxelWorld::IsInWorldGenerationBounds(FIntVector ChunkPosition)
-{
-	return (ChunkPosition.Z <= 2 && ChunkPosition.Z > -6);
-}
+
 
 FIntVector AVoxelWorld::GetRegionOfChunk(FIntVector ChunkCoordinates)
 {
