@@ -84,7 +84,6 @@ protected:
 	int32 OneNorm(FIntVector Vector) const;
 	
 	static FVoxel DefaultGenerateBlockAt(FVector Position);
-	bool IsInWorldGenerationBounds(FIntVector ChunkPosition);	//return true at a given coordinate if that coordinate is inside the generation bounds of the voxel world
 
 public:	
 	// Called every frame
