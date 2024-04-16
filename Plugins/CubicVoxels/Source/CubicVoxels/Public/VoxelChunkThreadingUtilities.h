@@ -25,7 +25,7 @@ const int BlockTriangleData[24] = {
 	
 static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad,  FVoxel (*GenerationFunction) (FVector))
 {
-	auto StartTime = FDateTime::UtcNow(); 
+	// auto StartTime = FDateTime::UtcNow(); 
 	
 	//Create the variable that will store voxel data
 	
@@ -42,90 +42,15 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 				auto const Position = DefaultVoxelSize*FVector(x + ChunkSize*Coordinates.X, y + ChunkSize*Coordinates.Y , z + ChunkSize*Coordinates.Z);
 					
 				ChunkDataPtr->SetVoxel(x,y,z, (*GenerationFunction)(Position));
-
-				/*if (x ==0 && y==0 && z==0)
-				{
-					(CompressedChunkBlocksPtr->CompressedChunkData).Add(MakeStack( (*ChunkBlocksPtr)[0][0][0], 1));
-				}
-				else
-				{
-					if ( (CompressedChunkBlocksPtr->CompressedChunkData)[BlockCounter].Voxel == (*ChunkBlocksPtr)[x][y][z] )
-					{
-						(CompressedChunkBlocksPtr->CompressedChunkData)[BlockCounter].StackSize += 1;
-					}
-					else
-					{
-						(CompressedChunkBlocksPtr->CompressedChunkData).Add( MakeStack( (*ChunkBlocksPtr)[x][y][z], 1)  );
-						BlockCounter +=1;
-					}
-				}
-
-				if (  (*ChunkBlocksPtr)[x][y][z] != CompressedChunkBlocksPtr->GetVoxelAt(FIntVector(x,y,z)))
-				{
-					UE_LOG(LogTemp, Error, TEXT("There is a compression or decompression problem"));
-				}*/
 					
 			}
 		}
 	}
-
-	/*int32 BlockCounter = 0;
-	for (int32 x = 0; x < ChunkSize; x++)
-	{
-		(*ChunkBlocksPtr)[x].SetNum(ChunkSize);
-		for (int32 y = 0; y < ChunkSize; y++)
-		{
-			(*ChunkBlocksPtr)[x][y].SetNum(ChunkSize);
-			for (int32 z = 0; z < ChunkSize; z++)
-			{
-				auto const Position = VoxelSize*FVector(x + ChunkSize*Coordinates.X, y + ChunkSize*Coordinates.Y , z + ChunkSize*Coordinates.Z);
-					
-				(*ChunkBlocksPtr)[x][y][z] = (*GenerationFunction)(Position);
-					
-			}
-		}
-	}
-
-	float TimeElapsedInMs = (FDateTime::UtcNow() - StartTime).GetTotalMilliseconds(); 
-	UE_LOG(LogTemp, Warning, TEXT("Time taken to actually generate: %f"), TimeElapsedInMs);
-	StartTime = FDateTime::UtcNow(); 
-
-	for (int32 x = 0; x < ChunkSize; x++)
-	{
-		for (int32 y = 0; y < ChunkSize; y++)
-		{
-			for (int32 z = 0; z < ChunkSize; z++)
-			{
-				if (x ==0 && y==0 && z==0)
-				{
-					(CompressedChunkBlocksPtr->ChunkData).Add(MakeStack( (*ChunkBlocksPtr)[0][0][0], 1));
-				}
-				else
-				{
-					if ( (CompressedChunkBlocksPtr->ChunkData)[BlockCounter].Voxel == (*ChunkBlocksPtr)[x][y][z] )
-					{
-						(CompressedChunkBlocksPtr->ChunkData)[BlockCounter].StackSize += 1;
-					}
-					else
-					{
-						(CompressedChunkBlocksPtr->ChunkData).Add( MakeStack( (*ChunkBlocksPtr)[x][y][z], 1)  );
-						BlockCounter +=1;
-					}
-				}
-
-				if (  (*ChunkBlocksPtr)[x][y][z] != GetBlockAtInChunk(FIntVector(x,y,z), (*CompressedChunkBlocksPtr), ChunkSize ) )
-				{
-					UE_LOG(LogTemp, Error, TEXT("There is a compression or decompression problem"));
-				}
-					
-			}
-		}
-	}*/
 	
 
-	float TimeElapsedInMs = (FDateTime::UtcNow() - StartTime).GetTotalMilliseconds(); 
-	UE_LOG(LogTemp, Warning, TEXT("Time taken to generate: %f"), TimeElapsedInMs);
-	StartTime = FDateTime::UtcNow(); 
+	// float TimeElapsedInMs = (FDateTime::UtcNow() - StartTime).GetTotalMilliseconds(); 
+	// UE_LOG(LogTemp, Warning, TEXT("Time taken to generate: %f"), TimeElapsedInMs);
+	// StartTime = FDateTime::UtcNow(); 
 		
 	//Generate the chunk's quads data
 	TMap<FIntVector4, FVoxel> QuadsData;
@@ -162,8 +87,8 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 			}
 		}
 	}
-	TimeElapsedInMs = (FDateTime::UtcNow() - StartTime).GetTotalMilliseconds(); //to remove later
-	UE_LOG(LogTemp, Warning, TEXT("Time taken to mesh: %f"), TimeElapsedInMs);
+	// TimeElapsedInMs = (FDateTime::UtcNow() - StartTime).GetTotalMilliseconds(); //to remove later
+	// UE_LOG(LogTemp, Warning, TEXT("Time taken to mesh: %f"), TimeElapsedInMs);
 
 	ChunkQuadsToLoad->Enqueue(MakeTuple(Coordinates, QuadsData));
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, ChunkDataPtr));
@@ -182,6 +107,7 @@ static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTup
 			for (int z = 0; z < ChunkSize; ++z)
 			{
 				const auto CurrentBlock =  CompressedChunkBlocksPtr->GetVoxelAt(FIntVector3(x,y,z));
+				UE_LOG(LogTemp, Display, TEXT("Current block considered in meshing is %s"), CurrentBlock.VoxelType);
 				if (CurrentBlock.VoxelType != "Air" )
 				{
 					const FIntVector Directions[6] = {

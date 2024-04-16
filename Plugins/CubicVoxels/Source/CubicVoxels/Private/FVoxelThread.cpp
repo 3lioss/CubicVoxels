@@ -30,7 +30,6 @@ uint32 FVoxelThread::Run() {
 		}			
 		else
 		{
-			auto StartTime = FDateTime::UtcNow();
 			
 			if (!OrderedChunkThreadedWorkOrders.IsEmpty())
 			{
@@ -46,8 +45,8 @@ uint32 FVoxelThread::Run() {
 					}
 				}
 				
-				NextOrder.SendOrder();
 				OrderedChunkThreadedWorkOrders.RemoveAt(NextOrderIndex);
+				NextOrder.SendOrder();
 			} 
 			
 			//UE_LOG(LogTemp, Verbose, TEXT("Time taken to order chunks: %f"), TimeElapsedInMs);
@@ -78,7 +77,6 @@ TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc>* FVoxelThread::GetPlayerUpda
 void FVoxelThread::StartShutdown()
 {
 	ChunkThreadedWorkOrdersQueue.Empty();
-	OrderedChunkThreadedWorkOrders.Empty();
 	bShutdown = true;
 }
 

@@ -64,14 +64,10 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 			{
 				
 					ChunkStates.Add(Chunk + LoadingOrigin, EChunkState::Loading);
-					//(new FAutoDeleteAsyncTask<FVoxelChunkInsidesCookingAsyncTask>(Chunk + LoadingOrigin, &PreCookedChunksToLoadBlockData, &ChunkQuadsToLoad, ChunkSize, DefaultVoxelSize, WorldGenerationFunction ))->StartBackgroundTask();
 					const auto RegionSavedData = GetRegionSavedData(GetRegionOfChunk(Chunk + LoadingOrigin) );
 					if (RegionSavedData)
 					{
-						/*for (int k = 0; k <ChunkSavedData->ChunkData.Num(); k++ )
-						{
-							UE_LOG(LogTemp, Warning, TEXT("%d"), ChunkSavedData->ChunkData[k].StackSize );
-						}*/
+						
 						
 						const auto ChunkSavedData = RegionSavedData->Find(Chunk + LoadingOrigin);
 						if (ChunkSavedData)
@@ -84,11 +80,18 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 							ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
 							ChunkGenerationOrder.OutputChunkFacesQueuePtr = &ChunkQuadsToLoad;
 							ChunkGenerationOrder.ChunkLocation = Chunk + LoadingOrigin;
-							ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::MeshingFromData;
+
+							if (CompressedChunkBlocksPtr->IsAdditive)
+							{
+								ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GeneratingAndMeshingWithAdditiveData;
+							}
+							else
+							{
+								ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::MeshingFromData;
+							}
+							
 							ChunkThreadedWorkOrdersQueuePtr->Enqueue(ChunkGenerationOrder);
 
-							//TODO: if chunk is additive, add a parameter in the order to allow the async building to take into account the saved data
-							//ComputeInsideFacesOfLoadedChunk( Chunk + LoadingOrigin, &PreCookedChunksToLoadBlockData, &ChunkQuadsToLoad, ChunkSize, DefaultVoxelSize, CompressedChunkBlocksPtr);
 						}
 						else
 						{
@@ -328,7 +331,7 @@ TObjectPtr<AChunk> AVoxelWorld::GetChunkAt(FIntVector ChunkLocation)
 	}
 }
 
-void AVoxelWorld::SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData)
+void AVoxelWorld::SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData) //Set the ChunkData of a chunk on the savefile directly
 {
 	const auto LoadedRegionData = LoadedRegions.Find(GetRegionOfChunk(ChunkLocation));
 
@@ -455,9 +458,11 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 		const auto ChunkPtr = GetChunkAt(AffectedChunkLocation);
 		if (ChunkPtr)
 		{
-			ChunkPtr->DestroyBlockAt(BlockWorldLocation); //TODO: correct the problem with this function (appears to target the wrong chunk)
+			ChunkPtr->DestroyBlockAt(BlockWorldLocation); 
 		}
 		//If the chunk is marked as loaded but no actor is registered for it, it means the chunk is actually empty and there is nothing to remove
+
+		RegisterChunkForSaving(AffectedChunkLocation);
 	}
 	else
 	{
@@ -491,7 +496,9 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 		{
 			ChunkPtr->SetBlockAt(BlockWorldLocation, Block); 
 		}
-		//TODO: handle this case by creating a new chunk actor just to place block in
+		//TODO: handle else case by creating a new chunk actor just to place block in
+
+		RegisterChunkForSaving(AffectedChunkLocation);
 	}
 	else
 	{
@@ -501,13 +508,13 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 		{
 			const auto BlockLocationInChunk = FIntVector(BlockWorldLocation/DefaultVoxelSize) - AffectedChunkLocation*ChunkSize;
 			LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)][AffectedChunkLocation].SetVoxel(BlockLocationInChunk, Block);
+			//problem if the specific chunk targeted isn't saved
 		}
 		else
 		{
 			//TODO: find a way to handle this case
 		}
 	}
-	//Otherwise, just edit the disk region data
 	
 }
 
@@ -593,3 +600,4 @@ int32 AVoxelWorld::OneNorm(FIntVector Vector) const
 {
 	return abs(Vector.X) + abs(Vector.Y) + abs(Vector.Z);
 }
+
