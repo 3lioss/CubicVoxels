@@ -21,7 +21,7 @@ AChunk::AChunk()
 	bReplicates = false;
 
 	VoxelCharacteristicsData = ConstructorHelpers::FObjectFinder<UDataTable>(TEXT("/Script/Engine.DataTable'/CubicVoxels/DefaultVoxelCharacteistics.DefaultVoxelCharacteistics'")).Object;
-	
+
 }
 
 void AChunk::LoadBlocks(TSharedPtr<FChunkData> InputVoxelData)

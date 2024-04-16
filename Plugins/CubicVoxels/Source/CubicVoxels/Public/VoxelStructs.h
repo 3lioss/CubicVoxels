@@ -34,7 +34,7 @@ struct FVoxel
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(SaveGame, BlueprintReadWrite)
-	FName VoxelType = "Air";
+	FName VoxelType = "Air"; //The name "Null" is reserved for an empty voxel
 
 	UPROPERTY(SaveGame,BlueprintReadWrite)
 	bool IsTransparent = true;
@@ -99,6 +99,8 @@ struct FChunkData
 		UncompressedChunkData.SetNum(ChunkSize*ChunkSize*ChunkSize);
 	}
 
+	//Lookup functions
+
 	FVoxel GetVoxelAt(int32 x, int32 y, int32 z)
 	{
 		return GetVoxelAt(FIntVector(x,y,z));
@@ -131,6 +133,8 @@ struct FChunkData
 		}
 		
 	}
+
+	//Chunk edition functions
 
 	void RemoveVoxel(int32 x, int32 y, int32 z)
 	{
@@ -286,6 +290,25 @@ struct FChunkData
 			UncompressedChunkData[VoxelLocation.X*ChunkSize*ChunkSize + VoxelLocation.Y*ChunkSize + VoxelLocation.Z] = Voxel;
 		}
 	}
+
+	void ApplyAsAdditive(FChunkData AdditiveChunk) //Replace every voxel that is not marked as "None" in the additive chunk by its value in the additive chunk.
+	{
+		for (int32 x = 0; x < ChunkSize; x++)
+		{
+			for (int32 y = 0; y < ChunkSize; y++)
+			{
+				for (int32 z = 0; z < ChunkSize; z++)
+				{
+					if (AdditiveChunk.GetVoxelAt(x, y, z).VoxelType != "Null")
+					{
+						SetVoxel(x,y,z, AdditiveChunk.GetVoxelAt(x, y, z));
+					}
+				}
+			}
+		}
+	}
+
+	//Operators and static functions
 
 	FChunkData& operator=(FChunkData A) {
 		const bool IsCompressedCopy = A.IsCompressed;
