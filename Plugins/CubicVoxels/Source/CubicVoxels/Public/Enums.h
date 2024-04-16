@@ -7,5 +7,5 @@ enum class EChunkState
 
 enum class EChunkThreadedWorkOrderType
 {
-	GenerationAndMeshing, MeshingFromData
+	GenerationAndMeshing, MeshingFromData, GeneratingAndMeshingWithAdditiveData
 };

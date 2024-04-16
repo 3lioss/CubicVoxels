@@ -79,8 +79,7 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 							const TSharedPtr<FChunkData> CompressedChunkBlocksPtr(new FChunkData);
 							(*CompressedChunkBlocksPtr) = *ChunkSavedData;
 							auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
-							ChunkGenerationOrder.BlockSize = DefaultVoxelSize;
-							ChunkGenerationOrder.ChunkSize = ChunkSize;
+							
 							ChunkGenerationOrder.CompressedChunkBlocksPtr = CompressedChunkBlocksPtr;
 							ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
 							ChunkGenerationOrder.OutputChunkFacesQueuePtr = &ChunkQuadsToLoad;
@@ -94,8 +93,7 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 						else
 						{
 							auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
-							ChunkGenerationOrder.BlockSize = DefaultVoxelSize;
-							ChunkGenerationOrder.ChunkSize = ChunkSize;
+		
 							ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
 							ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
 							ChunkGenerationOrder.OutputChunkFacesQueuePtr = &ChunkQuadsToLoad;
@@ -107,8 +105,7 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 					else
 					{
 						auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
-						ChunkGenerationOrder.BlockSize = DefaultVoxelSize;
-						ChunkGenerationOrder.ChunkSize = ChunkSize;
+					
 						ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
 						ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
 						ChunkGenerationOrder.OutputChunkFacesQueuePtr = &ChunkQuadsToLoad;
