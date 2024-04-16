@@ -91,6 +91,9 @@ struct FChunkData
 	UPROPERTY(SaveGame)
 	TArray<FVoxelStack> CompressedChunkData;
 
+	UPROPERTY(SaveGame)
+	bool IsAdditive = false;
+
 	FChunkData()
 	{
 		UncompressedChunkData.SetNum(ChunkSize*ChunkSize*ChunkSize);
