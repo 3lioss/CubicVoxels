@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "VoxelStructs.h"
+#include "BasePluginValues.h"
 
 //constant arrays helpful to build the triangles of a chunk's mesh
 const  FVector BlockVertexData[8] = {
@@ -22,7 +23,7 @@ const int BlockTriangleData[24] = {
 	3,2,7,6  // Down
 };
 	
-static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad, float VoxelSize, FVoxel (*GenerationFunction) (FVector))
+static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad,  FVoxel (*GenerationFunction) (FVector))
 {
 	auto StartTime = FDateTime::UtcNow(); 
 	
@@ -38,7 +39,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 		{
 			for (int32 z = 0; z < ChunkSize; z++)
 			{
-				auto const Position = VoxelSize*FVector(x + ChunkSize*Coordinates.X, y + ChunkSize*Coordinates.Y , z + ChunkSize*Coordinates.Z);
+				auto const Position = DefaultVoxelSize*FVector(x + ChunkSize*Coordinates.X, y + ChunkSize*Coordinates.Y , z + ChunkSize*Coordinates.Z);
 					
 				ChunkDataPtr->SetVoxel(x,y,z, (*GenerationFunction)(Position));
 
@@ -168,7 +169,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, ChunkDataPtr));
 }
 
-static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad, float VoxelSize, TSharedPtr<FChunkData> CompressedChunkBlocksPtr)
+static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad,  TSharedPtr<FChunkData> CompressedChunkBlocksPtr)
 {
 		
 	//Generate the chunk's quads data
