@@ -42,7 +42,10 @@ struct FVoxel
 	UPROPERTY(SaveGame, BlueprintReadWrite)
 	bool IsSolid = false;
 
-	
+	operator bool() const
+	{
+		return VoxelType != "Null";
+	}
 };
 
 inline bool operator== (const FVoxel& V1, const FVoxel& V2)
@@ -133,7 +136,6 @@ struct FChunkData
 		{
 			return UncompressedChunkData[IntLocation.X*ChunkSize*ChunkSize + IntLocation.Y*ChunkSize +IntLocation.Z];
 		}
-		
 	}
 
 	//Chunk edition functions
@@ -301,7 +303,7 @@ struct FChunkData
 			{
 				for (int32 z = 0; z < ChunkSize; z++)
 				{
-					if (AdditiveChunk.GetVoxelAt(x, y, z).VoxelType != "Null")
+					if (AdditiveChunk.GetVoxelAt(x, y, z))
 					{
 						SetVoxel(x,y,z, AdditiveChunk.GetVoxelAt(x, y, z));
 					}

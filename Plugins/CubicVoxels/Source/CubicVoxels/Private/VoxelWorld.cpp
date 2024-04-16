@@ -84,6 +84,7 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 							if (CompressedChunkBlocksPtr->IsAdditive)
 							{
 								ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GeneratingAndMeshingWithAdditiveData;
+								ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
 							}
 							else
 							{
