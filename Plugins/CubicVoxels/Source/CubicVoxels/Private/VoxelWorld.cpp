@@ -14,7 +14,6 @@ AVoxelWorld::AVoxelWorld()
 	bReplicates = true;
 	PrimaryActorTick.bCanEverTick = true;
 	
-
 	ViewDistance = 32;
 	VerticalViewDistance = 5;
 	
