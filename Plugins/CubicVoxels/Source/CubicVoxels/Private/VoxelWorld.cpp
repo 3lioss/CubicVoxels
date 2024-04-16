@@ -87,6 +87,8 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 							ChunkGenerationOrder.ChunkLocation = Chunk + LoadingOrigin;
 							ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::MeshingFromData;
 							ChunkThreadedWorkOrdersQueuePtr->Enqueue(ChunkGenerationOrder);
+
+							//TODO: if chunk is additive, add a parameter in the order to allow the async building to take into account the saved data
 							//ComputeInsideFacesOfLoadedChunk( Chunk + LoadingOrigin, &PreCookedChunksToLoadBlockData, &ChunkQuadsToLoad, ChunkSize, DefaultVoxelSize, CompressedChunkBlocksPtr);
 						}
 						else
@@ -195,7 +197,7 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 
 void AVoxelWorld::IterateChunkMeshing()
 {
-	//Add sides to chunks whose sides' mesh data have been computed
+	//Add the chunk quads which have been computed asynchronously
 	
 	while(!ChunkQuadsToLoad.IsEmpty())
 	{
@@ -207,11 +209,13 @@ void AVoxelWorld::IterateChunkMeshing()
 		{
 			if (*LoadingState == EChunkState::Loaded)
 			{
+				
 				const auto ChunkActor = ChunkActorsMap.Find(DataToLoad.Get<0>());
 				if (ChunkActor && IsValid(*ChunkActor))
 				{
 					(*ChunkActor)->AddQuads(DataToLoad.Get<1>());
 					(*ChunkActor)->RenderChunk(DefaultVoxelSize);
+					
 				}
 				else
 				{
@@ -488,7 +492,7 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 		const auto ChunkPtr = GetChunkAt(AffectedChunkLocation);
 		if (ChunkPtr)
 		{
-			ChunkPtr->SetBlockAt(BlockWorldLocation, Block); //TODO: correct the problem with this function (appears to target the wrong chunk)
+			ChunkPtr->SetBlockAt(BlockWorldLocation, Block); 
 		}
 		//TODO: handle this case by creating a new chunk actor just to place block in
 	}
