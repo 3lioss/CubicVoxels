@@ -9,8 +9,6 @@ struct FChunkThreadedWorkOrderBase
 	EChunkThreadedWorkOrderType OrderType;
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* OutputChunkDataQueuePtr;
 	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* OutputChunkFacesQueuePtr;
-	//int32 ChunkSize;
-	//float BlockSize;
 
 	FVoxel (*GenerationFunction) (FVector) ;
 	TSharedPtr<FChunkData> CompressedChunkBlocksPtr;
@@ -22,10 +20,18 @@ struct FChunkThreadedWorkOrderBase
 			GenerateChunkDataAndComputeInsideFaces(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, GenerationFunction);
 		}
 
+		if (OrderType == EChunkThreadedWorkOrderType::GeneratingAndMeshingWithAdditiveData)
+		{
+			//TODO: Take care of this case
+		}
+
 		if (OrderType == EChunkThreadedWorkOrderType::MeshingFromData)
 		{
 			ComputeInsideFacesOfLoadedChunk(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, CompressedChunkBlocksPtr);
 		}
+
+		
+		
 	};
 
 };

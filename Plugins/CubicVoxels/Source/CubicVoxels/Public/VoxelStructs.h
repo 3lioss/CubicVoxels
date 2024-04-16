@@ -86,6 +86,8 @@ struct FChunkData
 	GENERATED_USTRUCT_BODY()
 
 	FThreadSafeBool IsCompressed = false; //TODO: use this boolean as a necessary condition for saving on disk
+
+	UPROPERTY(SaveGame)
 	TArray<FVoxel> UncompressedChunkData;
 
 	UPROPERTY(SaveGame)
