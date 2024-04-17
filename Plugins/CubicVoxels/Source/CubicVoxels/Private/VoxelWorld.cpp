@@ -51,6 +51,7 @@ AVoxelWorld::AVoxelWorld()
 
 void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 {
+	/*Register all chunks in loading distance for loading*/
 	
 	const auto LoadingOrigin = FIntVector(this->GetActorRotation().GetInverse().RotateVector((PlayerPosition - this->GetActorLocation())/(ChunkSize*DefaultVoxelSize*this->GetActorScale().X)));
 	PlayerPositionUpdatesPtr->Enqueue(TTuple<FIntVector, float>(LoadingOrigin, GetGameTimeSinceCreation()));
@@ -198,7 +199,7 @@ void AVoxelWorld::IterateChunkLoading(FVector PlayerPosition)
 
 void AVoxelWorld::IterateChunkMeshing()
 {
-	//Add the chunk quads which have been computed asynchronously
+	/*Transmit to the chunk actors their data when it has finished being generated asynchronously */
 	
 	while(!ChunkQuadsToLoad.IsEmpty())
 	{
@@ -241,6 +242,7 @@ void AVoxelWorld::IterateChunkMeshing()
 
 void AVoxelWorld::IterateChunkUnloading(FVector PlayerPosition)
 {
+	/*Unload all chunks beyond loading distance*/
 
 	const auto LoadingOrigin =	FIntVector(this->GetActorRotation().GetInverse().RotateVector((PlayerPosition - this->GetActorLocation())/(ChunkSize*DefaultVoxelSize*this->GetActorScale().X)));
 	
@@ -268,8 +270,9 @@ void AVoxelWorld::IterateChunkUnloading(FVector PlayerPosition)
 
 }
 
-bool AVoxelWorld::IsChunkLoaded(FIntVector ChunkLocation) //tests if the chunk is marked as loaded in the chunkstates map
+bool AVoxelWorld::IsChunkLoaded(FIntVector ChunkLocation) 
 {
+	/*Tests if a chunk is marked as loaded. A true return value doesn't necessarily mean its chunk data is finished loading*/
 	if (ChunkStates.Contains(ChunkLocation))
 	{
 		return (ChunkStates[ChunkLocation] == EChunkState::Loaded);
@@ -282,6 +285,7 @@ bool AVoxelWorld::IsChunkLoaded(FIntVector ChunkLocation) //tests if the chunk i
 
 TMap<FIntVector, FChunkData>* AVoxelWorld::GetRegionSavedData(FIntVector ChunkRegionLocation)
 {
+	/*Get the saved data of a given region */
 	const auto LoadedRegionData = LoadedRegions.Find(ChunkRegionLocation);
 
 	if (LoadedRegionData)
@@ -322,6 +326,8 @@ TMap<FIntVector, FChunkData>* AVoxelWorld::GetRegionSavedData(FIntVector ChunkRe
 
 TObjectPtr<AChunk> AVoxelWorld::GetChunkAt(FIntVector ChunkLocation)
 {
+	/*Get the actor of the chunk at a given location if it exists*/
+	
 	if(ChunkActorsMap.Contains(ChunkLocation))
 	{
 		return ChunkActorsMap[ChunkLocation];
@@ -332,8 +338,9 @@ TObjectPtr<AChunk> AVoxelWorld::GetChunkAt(FIntVector ChunkLocation)
 	}
 }
 
-void AVoxelWorld::SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData) //Set the ChunkData of a chunk on the savefile directly
+void AVoxelWorld::SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData) 
 {
+	/*Sets the data of a chunk on the save file directly*/
 	const auto LoadedRegionData = LoadedRegions.Find(GetRegionOfChunk(ChunkLocation));
 
 	if (LoadedRegionData)
@@ -385,14 +392,17 @@ void AVoxelWorld::SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData
 
 void AVoxelWorld::RegisterChunkForSaving(FIntVector3 ChunkLocation)
 {
+	/*Mark a chunk as needing to be updated in the save file on the next save*/
 	ChunksToSave.Add(ChunkLocation);
 	RegionsToSave.Add(GetRegionOfChunk(ChunkLocation));
 }
 
 void AVoxelWorld::SaveVoxelWorld() 
 {
-	
-	for (auto& CurrentRegionToSave : RegionsToSave) //iterate over the regions to save 
+	/*Overwrite the save data of every chunk that has been marked as needing to be saved with their current data in the game*/
+
+	//iterate over the regions to save 
+	for (auto& CurrentRegionToSave : RegionsToSave) 
 	{
 		TMap<FIntVector, FChunkData> CurrentRegionData = TMap<FIntVector, FChunkData>();
 		
@@ -449,6 +459,10 @@ void AVoxelWorld::SaveVoxelWorld()
 
 void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 {
+	/*Destroy the block at a given location regardless of wether or not the chunk is loaded or has even been generated in the first place
+	 * In multiplayer, this function should be multicasted.
+	 */
+	
 	//Check if the chunk affected by the edit is loaded
 	const auto temp = (BlockWorldLocation - this->GetActorLocation())/(DefaultVoxelSize*ChunkSize*this->GetActorScale().X);
 	const auto AffectedChunkLocation = FIntVector(FMath::Floor(temp.X), FMath::Floor(temp.Y), FMath::Floor(temp.Z));
@@ -485,6 +499,10 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 
 void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 {
+	/*Set the value of the block at a given location regardless of wether or not the chunk is loaded or has even been generated in the first place
+	 * In multiplayer, this function should be multicasted.
+	 */
+	
 	//Check if the chunk affected by the edit is loaded
 	const auto temp = (BlockWorldLocation - this->GetActorLocation())/(DefaultVoxelSize*ChunkSize*this->GetActorScale().X);
 	const auto AffectedChunkLocation = FIntVector(FMath::Floor(temp.X), FMath::Floor(temp.Y), FMath::Floor(temp.Z));
@@ -521,6 +539,8 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 
 FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
 {
+	//Default world generation function
+	
 	if ((Position.Z < 10000*FMath::PerlinNoise2D(FVector2d(Position.X, Position.Y)/10000 ) ) )
 	{
 		FVoxel Temp;
@@ -551,6 +571,7 @@ FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
 
 FIntVector AVoxelWorld::GetRegionOfChunk(FIntVector ChunkCoordinates)
 {
+	/*Get the region of a given chunk*/
 	const int32 RegionX = floor( static_cast<float>(ChunkCoordinates.X) / RegionSize);
 	const int32 RegionY = floor( static_cast<float>(ChunkCoordinates.Y) / RegionSize);
 	const int32 RegionZ = floor( static_cast<float>(ChunkCoordinates.Z) / RegionSize);

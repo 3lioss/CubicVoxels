@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "VoxelStructs.h"
-#include "BasePluginValues.h"
+#include "GlobalPluginParameters.h"
 
 //constant arrays helpful to build the triangles of a chunk's mesh
 const  FVector BlockVertexData[8] = {
@@ -25,6 +25,8 @@ const int BlockTriangleData[24] = {
 	
 static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad,  FVoxel (*GenerationFunction) (FVector))
 {
+	/*Function to generate procedurally a chunk and its mesh data*/
+	
 	// auto StartTime = FDateTime::UtcNow(); 
 	
 	//Create the variable that will store voxel data
@@ -95,6 +97,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 
 static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad,  FVoxel (*GenerationFunction) (FVector),  TSharedPtr<FChunkData> ChunkDataPtr)
 {
+	/*Generate a chunk defined additively based on the procedural generator, then generate its mesh data*/
 
 	//Fill the arrays with the chunk's voxels
 	for (int32 x = 0; x < ChunkSize; x++)
@@ -157,6 +160,7 @@ static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQ
 
 static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad,  TSharedPtr<FChunkData> CompressedChunkBlocksPtr)
 {
+	/*Generate the mesh data of a chunk whose voxel data is already accessible*/
 		
 	//Generate the chunk's quads data
 	TMap<FIntVector4, FVoxel> QuadsData;
@@ -200,8 +204,10 @@ static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTup
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, CompressedChunkBlocksPtr));
 }
 
-static int32 Modulo(int32 Number, int32 N) //Custom function to compute class of a nul nbr in Z/NZ
+static int32 Modulo(int32 Number, int32 N) 
 {
+	/*Function to compute a modulo in accordance with french mathematical standards*/
+	
 	if (Number >= 0)
 	{
 		return Number % N;
@@ -212,11 +218,14 @@ static int32 Modulo(int32 Number, int32 N) //Custom function to compute class of
 
 static FIntVector NormaliseCyclicalCoordinates(FIntVector Coordinates, int32 Norm)
 {
+	/*Function to compute an integer vector modulo a given integer "norm"*/
+	
 	return FIntVector( Modulo(Coordinates.X,  Norm), Modulo(Coordinates.Y , Norm), Modulo(Coordinates.Z , Norm));
 }
 
 static void ComputeChunkSideFacesFromData(FChunkData* DataOfChunkToAddFacesTo, FChunkData* NeighbourChunkBlocks, int32 DirectionIndex, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* OuputChunkQuadsQueue, FIntVector ChunkToAddFacesToCoordinates)
 {
+	/*Function to compute the faces of a chunks' sides*/
 
 	const FIntVector Directions[6] = {
 		FIntVector(1,0,0),

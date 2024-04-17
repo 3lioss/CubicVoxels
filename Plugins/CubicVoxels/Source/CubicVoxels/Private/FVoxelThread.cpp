@@ -2,14 +2,14 @@
 #include "FVoxelThread.h"
 
 bool FVoxelThread::Init() {
-	/* Should the thread start? */
 	PlayerRelativeOrigin = FIntVector(0,0,0);
 	return true;
 }
 
 uint32 FVoxelThread::Run() {
 	while (!bShutdown) {
-		
+
+		//Look at all the updates given on the player's position, and keep the most recent one
 		float LastSavedTime = 0;
 		TTuple<FIntVector, float> CurrentPlayerPositionUpdate;
 
@@ -22,11 +22,12 @@ uint32 FVoxelThread::Run() {
 			}
 		}
 
-		FChunkThreadedWorkOrderBase CurrentOrder; //TODO: Replace this code by a max-finding function operating on TQueues
+		
+		FChunkThreadedWorkOrderBase CurrentOrder; 
 		if (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder))
 		{
+			//Empty the queue used to communicate with the game thread into an array that can be safely iterated over
 			OrderedChunkThreadedWorkOrders.Add(CurrentOrder);
-			//UE_LOG(LogTemp, Display, TEXT("Acquired order for chunk at %d, %d, %d"), CurrentOrder.ChunkLocation.X, CurrentOrder.ChunkLocation.Y, CurrentOrder.ChunkLocation.Z )
 		}			
 		else
 		{
@@ -49,8 +50,6 @@ uint32 FVoxelThread::Run() {
 				NextOrder.SendOrder();
 			} 
 			
-			//UE_LOG(LogTemp, Verbose, TEXT("Time taken to order chunks: %f"), TimeElapsedInMs);
-
 		}
 	}
 	return 0;
@@ -82,6 +81,7 @@ void FVoxelThread::StartShutdown()
 
 bool FVoxelThread::IsFartherToPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B)
 {
+	/*Finds which to-be-generated chunk is closer to the player between A and B*/
 	const auto  CA = A.ChunkLocation - PlayerRelativeOrigin;
 	const auto  CB = B.ChunkLocation - PlayerRelativeOrigin; 
 

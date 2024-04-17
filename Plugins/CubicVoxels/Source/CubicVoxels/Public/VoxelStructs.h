@@ -1,13 +1,14 @@
 ﻿#pragma once
-#include "BasePluginValues.h"
+#include "GlobalPluginParameters.h"
 #include "ProceduralMeshComponent.h" 
 #include "Engine/DataTable.h"
 #include "VoxelStructs.generated.h"
 
-
 USTRUCT()
 struct FMeshData
 {
+	/*Struct to hold the procedural mesh data of a chunk*/
+
 	GENERATED_USTRUCT_BODY()
 
 	TArray<FVector> VertexData = TArray<FVector>();
@@ -21,6 +22,7 @@ struct FMeshData
 USTRUCT(BlueprintType)
 struct FVoxelCharacteristics : public FTableRowBase
 {
+	/*Type used in data tables to link voxel types with materials*/
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -31,16 +33,25 @@ struct FVoxelCharacteristics : public FTableRowBase
 USTRUCT(BlueprintType)
 struct FVoxel
 {
+	/*Base voxel type*/
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(SaveGame, BlueprintReadWrite)
-	FName VoxelType = "Air"; //The name "Null" is reserved for an empty voxel
+	FName VoxelType; //The name "Null" is reserved for an empty voxel
 
 	UPROPERTY(SaveGame,BlueprintReadWrite)
-	bool IsTransparent = true;
+	bool IsTransparent;
 	
 	UPROPERTY(SaveGame, BlueprintReadWrite)
-	bool IsSolid = false;
+	bool IsSolid;
+
+	//The default voxel is air
+	FVoxel()
+	{
+		VoxelType = "Air";
+		IsTransparent = true;
+		IsSolid = false;
+	}
 
 	operator bool() const
 	{
@@ -52,13 +63,13 @@ inline bool operator== (const FVoxel& V1, const FVoxel& V2)
 {
 	return (V1.VoxelType == V2.VoxelType);
 }
-	
 
-inline FVoxel DefaultVoxel; //global variable used to denote an air voxel
+inline FVoxel DefaultVoxel = FVoxel(); //global variable used to denote an air voxel
 
 USTRUCT()
 struct FVoxelStack
 {
+	/*A stack of voxels */
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(SaveGame)
@@ -72,16 +83,13 @@ struct FVoxelStack
 		StackSize = 0;
 		Voxel = FVoxel();
 	}
-};
 
-inline FVoxelStack MakeStack(FVoxel Voxel, int32 StackSize)
-{
-	FVoxelStack Result;
-	Result.Voxel = Voxel;
-	Result.StackSize = StackSize;
-	
-	return Result;
-}
+	FVoxelStack(FVoxel InputVoxel, int32 InputStackSize)
+	{
+		Voxel = InputVoxel;
+		StackSize = InputStackSize;
+	}
+};
 
 USTRUCT()
 struct FChunkData
@@ -165,7 +173,7 @@ struct FChunkData
 				if (BlockIndex == 0)
 				{
 					CompressedChunkData[i].StackSize -= 1;
-					CompressedChunkData.Insert(MakeStack(DefaultVoxel, 1), i);
+					CompressedChunkData.Insert(FVoxelStack(DefaultVoxel, 1), i);
 				}
 				else
 				{
@@ -181,13 +189,13 @@ struct FChunkData
 							else
 							{
 								CompressedChunkData[i].StackSize -= 1;
-								CompressedChunkData.Insert(MakeStack(DefaultVoxel, 1), i+1);
+								CompressedChunkData.Insert(FVoxelStack(DefaultVoxel, 1), i+1);
 							}
 						}
 						else
 						{
 							CompressedChunkData[i].StackSize -= 1;
-							CompressedChunkData.Add(MakeStack(DefaultVoxel, 1));
+							CompressedChunkData.Add(FVoxelStack(DefaultVoxel, 1));
 						}
 					}
 					else
@@ -196,13 +204,13 @@ struct FChunkData
 						CompressedChunkData[i].StackSize = BlockIndex;
 						if (i+1 < CompressedChunkData.Num())
 						{
-							CompressedChunkData.Insert(MakeStack(CompressedChunkData[i].Voxel, Temp - BlockIndex - 1), i+1);
-							CompressedChunkData.Insert(MakeStack(DefaultVoxel, 1), i+1);
+							CompressedChunkData.Insert(FVoxelStack(CompressedChunkData[i].Voxel, Temp - BlockIndex - 1), i+1);
+							CompressedChunkData.Insert(FVoxelStack(DefaultVoxel, 1), i+1);
 						}
 						else
 						{
-							CompressedChunkData.Add(MakeStack(DefaultVoxel, 1));
-							CompressedChunkData.Add(MakeStack(CompressedChunkData[i].Voxel, Temp - BlockIndex - 1));
+							CompressedChunkData.Add(FVoxelStack(DefaultVoxel, 1));
+							CompressedChunkData.Add(FVoxelStack(CompressedChunkData[i].Voxel, Temp - BlockIndex - 1));
 						}
 					}
 			
@@ -242,7 +250,7 @@ struct FChunkData
 				if (BlockIndex == 0)
 				{
 					(CompressedChunkData)[i].StackSize -= 1;
-					CompressedChunkData.Insert(MakeStack(Voxel, 1), i);
+					CompressedChunkData.Insert(FVoxelStack(Voxel, 1), i);
 				}
 				else
 				{
@@ -258,13 +266,13 @@ struct FChunkData
 							else
 							{
 								(CompressedChunkData)[i].StackSize -= 1;
-								CompressedChunkData.Insert(MakeStack(Voxel, 1), i+1);
+								CompressedChunkData.Insert(FVoxelStack(Voxel, 1), i+1);
 							}
 						}
 						else
 						{
 							(CompressedChunkData)[i].StackSize -= 1;
-							CompressedChunkData.Add(MakeStack(Voxel, 1));
+							CompressedChunkData.Add(FVoxelStack(Voxel, 1));
 						}
 					}
 					else
@@ -273,13 +281,13 @@ struct FChunkData
 						(CompressedChunkData)[i].StackSize = BlockIndex;
 						if (i+1 < CompressedChunkData.Num())
 						{
-							CompressedChunkData.Insert(MakeStack((CompressedChunkData)[i].Voxel, Temp - BlockIndex - 1), i+1);
-							CompressedChunkData.Insert(MakeStack(Voxel, 1), i+1);
+							CompressedChunkData.Insert(FVoxelStack((CompressedChunkData)[i].Voxel, Temp - BlockIndex - 1), i+1);
+							CompressedChunkData.Insert(FVoxelStack(Voxel, 1), i+1);
 						}
 						else
 						{
-							CompressedChunkData.Add(MakeStack(Voxel, 1));
-							CompressedChunkData.Add(MakeStack((CompressedChunkData)[i].Voxel, Temp - BlockIndex - 1));
+							CompressedChunkData.Add(FVoxelStack(Voxel, 1));
+							CompressedChunkData.Add(FVoxelStack((CompressedChunkData)[i].Voxel, Temp - BlockIndex - 1));
 						}
 					}
 				}
@@ -349,7 +357,7 @@ struct FChunkData
 
 						if (x ==0 && y==0 && z==0)
 						{
-							A.CompressedChunkData.Add(MakeStack( A.UncompressedChunkData[0], 1));
+							A.CompressedChunkData.Add(FVoxelStack( A.UncompressedChunkData[0], 1));
 						}
 						else
 						{
@@ -359,7 +367,7 @@ struct FChunkData
 							}
 							else
 							{
-								A.CompressedChunkData.Add( MakeStack( A.UncompressedChunkData[x*ChunkSize*ChunkSize + y*ChunkSize + z], 1)  );
+								A.CompressedChunkData.Add( FVoxelStack( A.UncompressedChunkData[x*ChunkSize*ChunkSize + y*ChunkSize + z], 1)  );
 								BlockCounter +=1;
 							}
 						}
