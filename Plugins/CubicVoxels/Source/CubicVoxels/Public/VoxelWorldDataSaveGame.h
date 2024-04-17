@@ -15,8 +15,6 @@ class CUBICVOXELS_API UVoxelWorldDataSaveGame : public USaveGame
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(VisibleAnywhere)
-	TArray<FVoxelStack> ChunkData;
 
 	UPROPERTY(VisibleAnywhere)
 	TMap<FIntVector, FChunkData> RegionData;

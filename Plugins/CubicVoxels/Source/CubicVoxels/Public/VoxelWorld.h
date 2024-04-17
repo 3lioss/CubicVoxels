@@ -23,34 +23,40 @@ public:
 	// Sets default values for this actor's properties
 	AVoxelWorld();
 
+	//Chunk loading distance parameters
 	int32 ViewDistance;
 	int32 VerticalViewDistance;
 
-	
+	//Main functions called on actor ticking
 	void IterateChunkLoading(FVector PlayerPosition);
 	void IterateChunkMeshing();
 	void IterateChunkUnloading(FVector PlayerPosition);
 
+	//Table that links voxel types with their materials
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	class UDataTable* VoxelPhysicalCharacteristicsTable;
 
+	//Pointer to the function that generates the terrain procedurally
 	FVoxel (*WorldGenerationFunction) (FVector);
 
+	//Pointer to the thread that generates the world
 	FVoxelThread* WorldGenerationThread;
 
+	//Functions to access chunk data
 	bool IsChunkLoaded(FIntVector ChunkLocation);
 	TMap<FIntVector, FChunkData>* GetRegionSavedData(FIntVector RegionLocation);
 	TObjectPtr<AChunk> GetChunkAt(FIntVector ChunkLocation);
 	void SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData);
 
+	//Blueprint functions to edit and save the world
 	UFUNCTION(BlueprintCallable)
 	void SaveVoxelWorld();
 
 	UFUNCTION(BlueprintCallable)
-	void DestroyBlockAt(FVector BlockWorldLocation); //This function is intended to be multicasted in multiplayer
+	void DestroyBlockAt(FVector BlockWorldLocation); 
 
 	UFUNCTION(BlueprintCallable)
-	void SetBlockAt(FVector BlockWorldLocation, FVoxel Block); //This functions needs to be called on the server
+	void SetBlockAt(FVector BlockWorldLocation, FVoxel Block); 
 
 private:
 
@@ -59,7 +65,8 @@ private:
 	TSet<FIntVector> ChunksToSave;
 	TSet<FIntVector> RegionsToSave;
 
-	TMap<FIntVector, TMap<FIntVector, FChunkData>> LoadedRegions; //Map of all the regions that are currently loaded in memory, in each region the chunks are located in absolute chunk coordinates
+	//Map of all the regions that are currently loaded in memory, in each region the chunks are located in absolute chunk coordinates
+	TMap<FIntVector, TMap<FIntVector, FChunkData>> LoadedRegions; 
 
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc> GeneratedChunksToLoadInGame;
 	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc> ChunkQuadsToLoad;
@@ -76,6 +83,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void BeginDestroy() override;
 
+	
 	TArray<TSet<FIntVector>> ViewLayers;
 	TArray<TTuple<FIntVector, TSharedPtr<FChunkData>>> OrderedGeneratedChunksToLoadInGame;
 	TArray<FIntVector> ChunksToUnloadOnGivenTick;
@@ -92,7 +100,7 @@ public:
 };
 
 
-class FVoxelChunkSideCookingAsyncTask : public FNonAbandonableTask //Asynchronous task that generates a chunk's inside's quad data
+class FVoxelChunkSideCookingAsyncTask : public FNonAbandonableTask //Asynchronous task that generates a chunk's face's quad data
 {
 	FChunkData* TaskChunkToContinueLoadingBlocks;
 	FChunkData* TaskNeighbourChunkBlocks;

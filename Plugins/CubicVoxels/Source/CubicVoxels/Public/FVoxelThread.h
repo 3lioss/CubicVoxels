@@ -14,12 +14,14 @@ public:
 	virtual void Exit() override;
 	virtual void Stop() override;
 
-	TQueue< FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* GetGenerationOrdersQueue( );
-	TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc>* GetPlayerUpdatesQueue();
-	
 	FRunnableThread* Thread;
 	bool bShutdown= false;
+
+	//Functions to retrieve pointers to the queues used to communicate with the game thread, they are used on the game thread
+	TQueue< FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* GetGenerationOrdersQueue();
+	TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc>* GetPlayerUpdatesQueue();
 	
+	//Queues used to communicate with the game thread
 	TQueue< FChunkThreadedWorkOrderBase, EQueueMode::Mpsc> ChunkThreadedWorkOrdersQueue;
 	TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc> PlayerPositionUpdates;
 

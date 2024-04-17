@@ -5,6 +5,9 @@
 
 struct FChunkThreadedWorkOrderBase
 {
+	/*Structure that holds the data needed to generate a given chunk, depending on how the chunk needs to be generated*/
+
+	//Data held
 	FIntVector ChunkLocation;
 	EChunkThreadedWorkOrderType OrderType;
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* OutputChunkDataQueuePtr;
@@ -12,7 +15,8 @@ struct FChunkThreadedWorkOrderBase
 
 	FVoxel (*GenerationFunction) (FVector);
 	TSharedPtr<FChunkData> CompressedChunkBlocksPtr;
-	
+
+	//Method that generates the underlying chunk
 	void SendOrder()
 	{
 		if (OrderType == EChunkThreadedWorkOrderType::GenerationAndMeshing)
@@ -29,8 +33,6 @@ struct FChunkThreadedWorkOrderBase
 		{
 			ComputeInsideFacesOfLoadedChunk(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, CompressedChunkBlocksPtr);
 		}
-
-		
 		
 	};
 

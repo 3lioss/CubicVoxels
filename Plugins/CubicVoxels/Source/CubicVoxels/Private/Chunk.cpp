@@ -2,17 +2,14 @@
 
 #include "..\Public\Chunk.h"
 #include "ProceduralMeshComponent.h"
-#include "VoxelWorldDataSaveGame.h"
 #include "VoxelStructs.h"
 #include "Engine/DataTable.h"
 #include "VoxelChunkThreadingUtilities.h"
 #include "VoxelWorld.h"
-#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 AChunk::AChunk()
 {
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
 	Mesh = CreateDefaultSubobject<UProceduralMeshComponent>("Physical mesh");
@@ -21,30 +18,32 @@ AChunk::AChunk()
 	bReplicates = false;
 
 	VoxelCharacteristicsData = ConstructorHelpers::FObjectFinder<UDataTable>(TEXT("/Script/Engine.DataTable'/CubicVoxels/DefaultVoxelCharacteistics.DefaultVoxelCharacteistics'")).Object;
-
 }
 
 void AChunk::LoadBlocks(TSharedPtr<FChunkData> InputVoxelData)
 {
+	/*Sets the voxel data of the chunk */ 
 	BlocksData = InputVoxelData;
 }
 
 void AChunk::AddQuads(TMap<FIntVector4, FVoxel> VoxelQuadsToAdd)
 {
+	/*Adds faces to the chunk */
 	VoxelQuads.Append(VoxelQuadsToAdd);
 }
 
 bool AChunk::HasQuadAt(FIntVector4 QuadLocation)
 {
+	/*Tests if there is a face at the given location*/
 	return VoxelQuads.Contains(QuadLocation);
 }
 
 void AChunk::RemoveQuad(FIntVector4 Quad)
 {
+	/*Removes a face at the given location*/
 	VoxelQuads.Remove(Quad);
 }
 
-// Called when the game starts or when spawned
 void AChunk::BeginPlay()
 {
 	Super::BeginPlay();
@@ -55,38 +54,14 @@ bool AChunk::IsInsideChunk(FIntVector BlockLocation)
 	return (BlockLocation.X < ChunkSize && BlockLocation.Y < ChunkSize && BlockLocation.X < ChunkSize && BlockLocation.X >= 0 && BlockLocation.Y >= 0 && BlockLocation.Z >= 0);
 }
 
-// Called every frame
 void AChunk::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 }
 
-void AChunk::SaveChunkDataToDisk()
-{
-	auto SaveObject = Cast<UVoxelWorldDataSaveGame>(UGameplayStatics::CreateSaveGameObject(UVoxelWorldDataSaveGame::StaticClass()));
-
-	SaveObject->ChunkData.SetNum(BlocksData->CompressedChunkData.Num());
-	for (int i = 0; i < BlocksData->CompressedChunkData.Num(); i++)
-	{
-		
-		SaveObject->ChunkData[i] = BlocksData->CompressedChunkData[i];
-	}
-	
-	FString ChunkCoordinates = "";
-	ChunkCoordinates.AppendInt(Location.X);
-	ChunkCoordinates.Append(",");
-	ChunkCoordinates.AppendInt(Location.Y);
-	ChunkCoordinates.Append(",");
-	ChunkCoordinates.AppendInt(Location.Z);
-	const FString& SaveSlotName = ChunkCoordinates;
-	
-	UGameplayStatics::SaveGameToSlot(SaveObject, SaveSlotName, 0 );
-	
-}
-
-
 void AChunk::RenderChunk(float VoxelSize)
 {
+	/*Creates the procedural mesh of the chunk based on its quads data*/
 	const  FVector localBlockVertexData[8] = {
 		FVector(1,1,1),
 		FVector(1,0,1),
@@ -122,7 +97,7 @@ void AChunk::RenderChunk(float VoxelSize)
 
 	for (auto& VoxelQuad : VoxelQuads)
 	{
-		const auto CurrentVoxelType = VoxelQuad.Get<1>().VoxelType; //TO DO: replace the voxel type with an FName that relates to a material. The FName is related to its material through a data table, which serves as a "texture pack"
+		const auto CurrentVoxelType = VoxelQuad.Get<1>().VoxelType;
 		
 		if (!SectionIndices.Contains(CurrentVoxelType))
 		{
@@ -182,6 +157,7 @@ void AChunk::RenderChunk(float VoxelSize)
 
 void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 {
+	/*Destroys the block at the given world location*/
 	const auto temp = (BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize);
 	const auto BlockLocation = FIntVector(FMath::Floor(temp.X), FMath::Floor(temp.Y), FMath::Floor(temp.Z));
 	
@@ -247,6 +223,7 @@ void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 
 void AChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 {
+	/*Sets the block at the given world location*/
 	auto RelativeLocation = (BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize);
 	const auto BlockLocation = FIntVector(FMath::Floor(RelativeLocation.X), FMath::Floor(RelativeLocation.Y), FMath::Floor(RelativeLocation.Z));
 	
