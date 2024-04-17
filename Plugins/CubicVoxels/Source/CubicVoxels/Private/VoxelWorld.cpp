@@ -469,7 +469,6 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 
 	if (IsChunkLoaded(AffectedChunkLocation))
 	{
-		
 		const auto ChunkPtr = GetChunkAt(AffectedChunkLocation);
 		if (ChunkPtr)
 		{
@@ -607,12 +606,6 @@ void AVoxelWorld::Tick(float DeltaTime)
 	IterateChunkLoading(GetWorld()->GetFirstPlayerController()->GetPawnOrSpectator()->GetActorLocation() );
 	
 	IterateChunkMeshing();
-
-	if (!ChunksToSave.IsEmpty())
-	{
-		SaveVoxelWorld();
-
-	}
 	
 	IterateChunkUnloading(GetWorld()->GetFirstPlayerController()->GetPawnOrSpectator()->GetActorLocation());
 
