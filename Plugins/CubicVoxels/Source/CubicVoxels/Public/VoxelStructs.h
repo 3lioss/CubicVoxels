@@ -57,6 +57,7 @@ struct FVoxel
 	{
 		return VoxelType != "Null";
 	}
+	
 };
 
 inline bool operator== (const FVoxel& V1, const FVoxel& V2)
@@ -96,7 +97,7 @@ struct FChunkData
 {
 	GENERATED_USTRUCT_BODY()
 
-	FThreadSafeBool IsCompressed = false; //TODO: use this boolean as a necessary condition for saving on disk
+	bool IsCompressed = false; //TODO: use this boolean as a necessary condition for saving on disk
 
 	UPROPERTY(SaveGame)
 	TArray<FVoxel> UncompressedChunkData;
@@ -379,6 +380,18 @@ struct FChunkData
 			//UE_LOG(LogTemp, Warning, TEXT("Estimated size after compression: %llu"), sizeof(A.CompressedChunkData[0])*A.CompressedChunkData.Num());
 			return true;
 		}
+	}
+
+	static FChunkData EmptyChunkData()
+	{
+		auto Result = FChunkData();
+		Result.IsCompressed = true;
+		auto NullVoxel = FVoxel();
+		NullVoxel.VoxelType = "Null";
+		
+		Result.CompressedChunkData = TArray<FVoxelStack>();
+		Result.CompressedChunkData.Add(FVoxelStack(NullVoxel, ChunkSize*ChunkSize*ChunkSize));
+		return Result;
 	}
 };
 
