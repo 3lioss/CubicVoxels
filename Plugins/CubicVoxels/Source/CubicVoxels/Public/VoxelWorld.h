@@ -28,9 +28,9 @@ public:
 	int32 VerticalViewDistance;
 
 	//Main functions called on actor ticking
-	void IterateChunkLoading(FVector PlayerPosition);
+	void IterateChunkLoading();
 	void IterateChunkMeshing();
-	void IterateChunkUnloading(FVector PlayerPosition);
+	void IterateChunkUnloading();
 
 	//Table that links voxel types with their materials
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
@@ -39,9 +39,11 @@ public:
 	//Pointer to the function that generates the terrain procedurally
 	FVoxel (*WorldGenerationFunction) (FVector);
 
-	//Pointer to the thread that generates the world
-	FVoxelThread* WorldGenerationThread;
-
+	//The VoxelWorld invokes a thread for each managed player
+	//The client manages only one player and the server manages everyone
+	//FVoxelThread* WorldGenerationThread;
+	TMap<TObjectPtr<APlayerController>, FVoxelThread*> PlayerManagingThreadsMap;
+	
 	//Functions to access chunk data
 	bool IsChunkLoaded(FIntVector ChunkLocation);
 	TMap<FIntVector, FChunkData>* GetRegionSavedData(FIntVector RegionLocation);
@@ -56,8 +58,12 @@ public:
 	void DestroyBlockAt(FVector BlockWorldLocation); 
 
 	UFUNCTION(BlueprintCallable)
-	void SetBlockAt(FVector BlockWorldLocation, FVoxel Block); 
+	void SetBlockAt(FVector BlockWorldLocation, FVoxel Block);
 
+	//Function to add a player to be managed by the VoxelWorld
+	UFUNCTION(BlueprintCallable)
+	void AddManagedPlayer(APlayerController* PlayerToAdd);
+	
 private:
 
 	TMap<FIntVector, EChunkState> ChunkStates;
@@ -71,8 +77,9 @@ private:
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc> GeneratedChunksToLoadInGame;
 	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc> ChunkQuadsToLoad;
 
-	TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* ChunkThreadedWorkOrdersQueuePtr;
-	TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc>* PlayerPositionUpdatesPtr;
+	//Each managed player has its own queue 
+	TMap<TObjectPtr<APlayerController>, TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>*> PlayerChunkThreadedWorkOrdersQueuesPtrMap;
+	TMap<TObjectPtr<APlayerController>, TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc>*> PlayerPositionUpdatesQueuesPtrMap;
 
 	FIntVector GetRegionOfChunk(FIntVector ChunkCoordinates);
 
@@ -86,7 +93,7 @@ protected:
 	
 	TArray<TSet<FIntVector>> ViewLayers;
 	TArray<TTuple<FIntVector, TSharedPtr<FChunkData>>> OrderedGeneratedChunksToLoadInGame;
-	TArray<FIntVector> ChunksToUnloadOnGivenTick;
+	TMap<FIntVector, int32> NumbersOfPlayerOutsideRangeOfChunkMap;
 	TQueue<TTuple<FIntVector, TMap<FIntVector4, FVoxel>>> ChunkQuadsToBeLoadedLater;
 	
 	int32 OneNorm(FIntVector Vector) const;
