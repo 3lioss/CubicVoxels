@@ -492,7 +492,7 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 		const auto ChunkPtr = GetChunkAt(AffectedChunkLocation);
 		if (ChunkPtr)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block by calling chunk actor"));	
+			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block by calling chunk actor"));	
 			ChunkPtr->DestroyBlockAt(BlockWorldLocation); 
 		}
 		//If the chunk is marked as loaded but no actor is registered for it, it means the chunk is actually empty and there is nothing to remove
@@ -511,12 +511,12 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 			
 			if (LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)].Contains(AffectedChunkLocation))
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block by editing saved data"));	
+				//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block by editing saved data"));	
 				LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)][AffectedChunkLocation].RemoveVoxel(BlockLocationInChunk);
 			}
 			else
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block with additive chunk data (1)"));	
+				//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block with additive chunk data (1)"));	
 
 				//Create additive data to account for the voxel removal
 				FChunkData AdditiveChunkData = FChunkData::EmptyChunkData();
@@ -529,7 +529,7 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 		}
 		else
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block with additive chunk data (2)"));	
+			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block with additive chunk data (2)"));	
 
 			//Create additive data to account for the voxel removal
 			FChunkData AdditiveChunkData = FChunkData::EmptyChunkData();
@@ -582,10 +582,7 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 			
 			if (LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)].Contains(AffectedChunkLocation))
 			{
-				
 				LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)][AffectedChunkLocation].SetVoxel(BlockLocationInChunk, Block);
-
-				
 			}
 			else
 			{

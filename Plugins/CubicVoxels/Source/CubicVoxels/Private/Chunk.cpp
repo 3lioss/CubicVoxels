@@ -51,7 +51,7 @@ void AChunk::BeginPlay()
 
 bool AChunk::IsInsideChunk(FIntVector BlockLocation)
 {
-	return (BlockLocation.X < ChunkSize && BlockLocation.Y < ChunkSize && BlockLocation.X < ChunkSize && BlockLocation.X >= 0 && BlockLocation.Y >= 0 && BlockLocation.Z >= 0);
+	return (BlockLocation.X < ChunkSize && BlockLocation.Y < ChunkSize && BlockLocation.Z < ChunkSize && BlockLocation.X >= 0 && BlockLocation.Y >= 0 && BlockLocation.Z >= 0);
 }
 
 void AChunk::Tick(float DeltaTime)
@@ -158,8 +158,7 @@ void AChunk::RenderChunk(float VoxelSize)
 void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 {
 	/*Destroys the block at the given world location*/
-	const auto temp = (BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize);
-	const auto BlockLocation = FIntVector(FMath::Floor(temp.X), FMath::Floor(temp.Y), FMath::Floor(temp.Z));
+	const auto BlockLocation = FloorVector(BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize);
 	
 	const FIntVector Neighbors[6] = {
 		FIntVector(BlockLocation.X+1,BlockLocation.Y,BlockLocation.Z),
@@ -191,6 +190,8 @@ void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 	//Remove the quads associated to the block and add new ones
 	for (int32 i = 0; i < 6; ++i)
 	{
+		
+		
 		VoxelQuads.Remove(FIntVector4(BlockLocation.X, BlockLocation.Y, BlockLocation.Z, i));
 		if (IsInsideChunk(Neighbors[i]))
 		{
@@ -204,15 +205,22 @@ void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 		{
 			if (OwningWorld->IsChunkLoaded(NeighboringChunks[i]))
 			{
+				
+				
 				const auto NeighborPtr = OwningWorld->GetChunkAt(NeighboringChunks[i]);
 				const auto NeighboringVoxel = NeighborPtr->BlocksData->GetVoxelAt(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize));
 				if ((NeighboringVoxel != DefaultVoxel) && !NeighborPtr->HasQuadAt(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, OppositeDirections[i])))
 				{
+
 					auto Temp = TMap<FIntVector4, FVoxel>();
 					Temp.Add(FIntVector4(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize).X, NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize).Y, NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize).Z, OppositeDirections[i]), NeighboringVoxel);
 					NeighborPtr->AddQuads( Temp);
 					NeighborPtr->RenderChunk(DefaultVoxelSize);	
 				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("The neighboring chunk doesn't have a corresponding actor"))
 			}
 		}
 	}
@@ -262,7 +270,7 @@ void AChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 		if (IsInsideChunk(Neighbors[i]))
 		{
 			const auto NeighboringVoxel = BlocksData->GetVoxelAt(Neighbors[i]);
-			if ((NeighboringVoxel == DefaultVoxel) && !VoxelQuads.Contains(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, i)) && (!BlockType.IsTransparent || (NeighboringVoxel == BlockType)))
+			if ((NeighboringVoxel.IsTransparent) && !VoxelQuads.Contains(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, i)) && (!BlockType.IsTransparent || (NeighboringVoxel == BlockType)))
 			{
 				VoxelQuads.Remove(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, OppositeDirections[i]));
 			}
@@ -274,9 +282,9 @@ void AChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 				const auto NeighborPtr = OwningWorld->GetChunkAt(NeighboringChunks[i]);
 				const auto NeighboringVoxel = NeighborPtr->BlocksData->GetVoxelAt(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize));
 				
-				if ((NeighboringVoxel == DefaultVoxel) && !NeighborPtr->HasQuadAt(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, i)) && (!BlockType.IsTransparent || (NeighboringVoxel == BlockType)))
+				if ((NeighboringVoxel.IsTransparent) && !NeighborPtr->HasQuadAt(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, i)) && (!BlockType.IsTransparent || (NeighboringVoxel == BlockType)))
 				{
-					NeighborPtr->RemoveQuad(FIntVector4(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize).X, NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize).Y, NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize).Z, OppositeDirections[i]));
+					NeighborPtr-> RemoveQuad(FIntVector4(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize).X, NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize).Y, NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize).Z, OppositeDirections[i]));
 					NeighborPtr->RenderChunk(DefaultVoxelSize);
 				}
 			}
