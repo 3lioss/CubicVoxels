@@ -92,7 +92,7 @@ protected:
 	
 	TArray<TSet<FIntVector>> ViewLayers;
 	TArray<TTuple<FIntVector, TSharedPtr<FChunkData>>> OrderedGeneratedChunksToLoadInGame;
-	TMap<FIntVector, int32> NumbersOfPlayerOutsideRangeOfChunkMap;
+	TMap<FIntVector, uint32> NumbersOfPlayerOutsideRangeOfChunkMap;
 	TQueue<TTuple<FIntVector, TMap<FIntVector4, FVoxel>>> ChunkQuadsToBeLoadedLater;
 	
 	int32 OneNorm(FIntVector Vector) const;

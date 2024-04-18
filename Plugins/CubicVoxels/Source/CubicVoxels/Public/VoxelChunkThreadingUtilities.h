@@ -233,7 +233,7 @@ static void ComputeChunkSideFacesFromData(FChunkData* DataOfChunkToAddFacesTo, F
 		FIntVector(-1,0,0),
 		FIntVector(0,-1,0),
 		FIntVector(0,0,1),
-		FIntVector(0,0,-1)							
+		FIntVector(0,0,-1)						
 	};
 
 	const FIntVector LoopOrigin[6] = {

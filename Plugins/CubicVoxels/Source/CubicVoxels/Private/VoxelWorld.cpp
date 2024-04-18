@@ -44,9 +44,11 @@ AVoxelWorld::AVoxelWorld()
 	
 	ChunkStates = TMap<FIntVector, EChunkState>();
 	ChunkActorsMap = TMap<FIntVector, TObjectPtr<AChunk>>();
-	NumbersOfPlayerOutsideRangeOfChunkMap = TMap<FIntVector, int32>();
+	NumbersOfPlayerOutsideRangeOfChunkMap = TMap<FIntVector, uint32>();
 
 	WorldGenerationFunction = &DefaultGenerateBlockAt;
+
+	SetActorScale3D(FVector(1,1,1));
 }
 
 void AVoxelWorld::IterateChunkLoading( )
@@ -483,14 +485,14 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 	 */
 	
 	//Check if the chunk affected by the edit is loaded
-	const auto Temp = (BlockWorldLocation - this->GetActorLocation())/(DefaultVoxelSize*ChunkSize*this->GetActorScale().X);
-	const auto AffectedChunkLocation = FIntVector(FMath::Floor(Temp.X), FMath::Floor(Temp.Y), FMath::Floor(Temp.Z));
-
+	const auto AffectedChunkLocation = FloorVector((BlockWorldLocation - this->GetActorLocation())/(DefaultVoxelSize*ChunkSize*this->GetActorScale().X) );
+	
 	if (IsChunkLoaded(AffectedChunkLocation))
 	{
 		const auto ChunkPtr = GetChunkAt(AffectedChunkLocation);
 		if (ChunkPtr)
 		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block by calling chunk actor"));	
 			ChunkPtr->DestroyBlockAt(BlockWorldLocation); 
 		}
 		//If the chunk is marked as loaded but no actor is registered for it, it means the chunk is actually empty and there is nothing to remove
@@ -500,24 +502,26 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 	{
 		const auto RegionDataPtr = GetRegionSavedData(GetRegionOfChunk(AffectedChunkLocation));
 		
+		//compute the block's location in the chunk
+		const auto BlockLocationInChunk = FloorVector((BlockWorldLocation-this->GetActorLocation())/DefaultVoxelSize) - AffectedChunkLocation*ChunkSize;
+		UE_LOG(LogTemp, Display, TEXT("Destroying block at: %d,%d, %d"), BlockLocationInChunk.X, BlockLocationInChunk.Y, BlockLocationInChunk.Z );
+		
 		if (RegionDataPtr)
 		{
-			const auto BlockLocationInChunk = FIntVector(BlockWorldLocation/DefaultVoxelSize) - AffectedChunkLocation*ChunkSize;
+			
 			if (LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)].Contains(AffectedChunkLocation))
 			{
+				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block by editing saved data"));	
 				LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)][AffectedChunkLocation].RemoveVoxel(BlockLocationInChunk);
 			}
 			else
 			{
-				//Compute the block's location in the chunk
-				auto RelativeLocation =  (BlockWorldLocation - this->GetActorLocation()) - FVector(AffectedChunkLocation)*(DefaultVoxelSize*ChunkSize*this->GetActorScale().X);
-				const auto BlockLocation = FIntVector(FMath::Floor(RelativeLocation.X), FMath::Floor(RelativeLocation.Y), FMath::Floor(RelativeLocation.Z));
+				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block with additive chunk data (1)"));	
 
 				//Create additive data to account for the voxel removal
-			
 				FChunkData AdditiveChunkData = FChunkData::EmptyChunkData();
 				AdditiveChunkData.IsAdditive = true;
-				AdditiveChunkData.SetVoxel(BlockLocation, FVoxel());
+				AdditiveChunkData.SetVoxel(BlockLocationInChunk, FVoxel());
 
 				//Add the data to the region, which is guaranteed to be currently loaded since we called GetRegionSavedData earlier in the function
 				RegionDataPtr->Add(AffectedChunkLocation, AdditiveChunkData);
@@ -525,14 +529,12 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 		}
 		else
 		{
-			//Compute the block's location in the chunk
-			auto RelativeLocation =  (BlockWorldLocation - this->GetActorLocation()) - FVector(AffectedChunkLocation)*(DefaultVoxelSize*ChunkSize*this->GetActorScale().X);
-			const auto BlockLocation = FIntVector(FMath::Floor(RelativeLocation.X), FMath::Floor(RelativeLocation.Y), FMath::Floor(RelativeLocation.Z));
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block with additive chunk data (2)"));	
 
 			//Create additive data to account for the voxel removal
 			FChunkData AdditiveChunkData = FChunkData::EmptyChunkData();
 			AdditiveChunkData.IsAdditive = true;
-			AdditiveChunkData.SetVoxel(BlockLocation, FVoxel());
+			AdditiveChunkData.SetVoxel(BlockLocationInChunk, FVoxel());
 
 			//Define the new region and add it to loaded regions so that it may be saved on world saving
 			auto NewRegion =  TMap<FIntVector, FChunkData>();
@@ -552,14 +554,14 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 	 */
 	
 	//Check if the chunk affected by the edit is loaded
-	const auto Temp = (BlockWorldLocation - this->GetActorLocation())/(DefaultVoxelSize*ChunkSize*this->GetActorScale().X);
-	const auto AffectedChunkLocation = FIntVector(FMath::Floor(Temp.X), FMath::Floor(Temp.Y), FMath::Floor(Temp.Z));
-
+	const auto AffectedChunkLocation = FloorVector((BlockWorldLocation - this->GetActorLocation())/(DefaultVoxelSize*ChunkSize*this->GetActorScale().X));
+	
 	if (IsChunkLoaded(AffectedChunkLocation))
 	{
 		const auto ChunkPtr = GetChunkAt(AffectedChunkLocation);
 		if (ChunkPtr)
 		{
+			
 			ChunkPtr->SetBlockAt(BlockWorldLocation, Block); 
 		}
 		else
@@ -571,41 +573,41 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 	else
 	{
 		const auto RegionDataPtr = GetRegionSavedData(GetRegionOfChunk(AffectedChunkLocation));
+
+		const auto BlockLocationInChunk = FloorVector((BlockWorldLocation-this->GetActorLocation())/DefaultVoxelSize) - AffectedChunkLocation*ChunkSize;
+		UE_LOG(LogTemp, Display, TEXT("Setting block at: %d,%d, %d"), BlockLocationInChunk.X, BlockLocationInChunk.Y, BlockLocationInChunk.Z );
 		
 		if (RegionDataPtr)
 		{
-			const auto BlockLocationInChunk = FIntVector(BlockWorldLocation/DefaultVoxelSize) - AffectedChunkLocation*ChunkSize;
+			
 			if (LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)].Contains(AffectedChunkLocation))
 			{
+				
 				LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)][AffectedChunkLocation].SetVoxel(BlockLocationInChunk, Block);
+
+				
 			}
 			else
 			{
-				//Compute the block's location in the chunk
-				auto RelativeLocation =  (BlockWorldLocation - this->GetActorLocation()) - FVector(AffectedChunkLocation)*(DefaultVoxelSize*ChunkSize*this->GetActorScale().X);
-				const auto BlockLocation = FIntVector(FMath::Floor(RelativeLocation.X), FMath::Floor(RelativeLocation.Y), FMath::Floor(RelativeLocation.Z));
 
 				//Create additive data to account for the voxel removal
-			
 				FChunkData AdditiveChunkData = FChunkData::EmptyChunkData();
 				AdditiveChunkData.IsAdditive = true;
-				AdditiveChunkData.SetVoxel(BlockLocation, Block);
-
+				AdditiveChunkData.SetVoxel(BlockLocationInChunk, Block);
+				
 				//Add the data to the region, which is guaranteed to be currently loaded since we called GetRegionSavedData earlier in the function
 				RegionDataPtr->Add(AffectedChunkLocation, AdditiveChunkData);
 			}
 		}
 		else
 		{
-			//Compute the block's location in the chunk
-			auto RelativeLocation =  (BlockWorldLocation - this->GetActorLocation()) - FVector(AffectedChunkLocation)*(DefaultVoxelSize*ChunkSize*this->GetActorScale().X);
-			const auto BlockLocation = FIntVector(FMath::Floor(RelativeLocation.X), FMath::Floor(RelativeLocation.Y), FMath::Floor(RelativeLocation.Z));
-
+			
 			//Create additive data to account for the voxel removal
 			FChunkData AdditiveChunkData = FChunkData::EmptyChunkData();
+			
 			AdditiveChunkData.IsAdditive = true;
-			AdditiveChunkData.SetVoxel(BlockLocation, Block);
-
+			AdditiveChunkData.SetVoxel(BlockLocationInChunk, Block);
+			
 			//Define the new region and add it to loaded regions so that it may be saved on world saving
 			auto NewRegion =  TMap<FIntVector, FChunkData>();
 			NewRegion.Add(AffectedChunkLocation, AdditiveChunkData);
