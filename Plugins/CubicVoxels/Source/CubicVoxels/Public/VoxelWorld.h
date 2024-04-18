@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "VoxelStructs.h"
+#include "ReplicationStructs.h"
 #include "VoxelChunkThreadingUtilities.h"
 #include "FVoxelThread.h"
 #include "VoxelWorld.generated.h"
@@ -39,10 +40,12 @@ public:
 	//Pointer to the function that generates the terrain procedurally
 	FVoxel (*WorldGenerationFunction) (FVector);
 
-	//The VoxelWorld invokes a thread for each managed player
-	//The client manages only one player and the server manages everyone
-	//FVoxelThread* WorldGenerationThread;
-	TMap<TObjectPtr<APlayerController>, FVoxelThread*> PlayerManagingThreadsMap;
+	//The VoxelWorld may manage multiple players
+	//It will generate the world around each managed player
+	//On the client there will generally be only one managed player, on the server every player is generally managed
+	//Each managed player has its own assigned thread to create the world around him
+	//All the data needed to manage a player is contained in a struct linked to the player by the following map
+	TMap<TObjectPtr<APlayerController>, FVoxelWorldManagedPlayerData> ManagedPlayerDataMap;
 	
 	//Functions to access chunk data
 	bool IsChunkLoaded(FIntVector ChunkLocation);
@@ -76,10 +79,6 @@ private:
 
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc> GeneratedChunksToLoadInGame;
 	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc> ChunkQuadsToLoad;
-
-	//Each managed player has its own queue 
-	TMap<TObjectPtr<APlayerController>, TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>*> PlayerChunkThreadedWorkOrdersQueuesPtrMap;
-	TMap<TObjectPtr<APlayerController>, TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc>*> PlayerPositionUpdatesQueuesPtrMap;
 
 	FIntVector GetRegionOfChunk(FIntVector ChunkCoordinates);
 

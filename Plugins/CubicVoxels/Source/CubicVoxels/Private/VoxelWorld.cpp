@@ -53,17 +53,15 @@ void AVoxelWorld::IterateChunkLoading( )
 {
 	/*Register all chunks in loading distance for loading for each managed player*/
 
-	for (const auto CurrentPlayerThreadPair : PlayerManagingThreadsMap)
+	for (const auto CurrentPlayerThreadPair : ManagedPlayerDataMap)
 	{
 		if (IsValid(CurrentPlayerThreadPair.Key))
 		{
-			auto PlayerWorkOrdersQueuePtr = PlayerChunkThreadedWorkOrdersQueuesPtrMap.FindRef(CurrentPlayerThreadPair.Key);
-			auto PlayerPositionUpdatesQueuePtr = PlayerPositionUpdatesQueuesPtrMap.FindRef(CurrentPlayerThreadPair.Key);
+			auto PlayerWorkOrdersQueuePtr = CurrentPlayerThreadPair.Value.ChunkThreadedWorkOrdersQueuePtr;
+			auto PlayerPositionUpdatesQueuePtr = CurrentPlayerThreadPair.Value.PositionUpdatesQueuePtr;
 
 			FVector PlayerPosition = CurrentPlayerThreadPair.Key->GetPawn()->GetActorLocation();
-		
-			if (PlayerPositionUpdatesQueuePtr && PlayerWorkOrdersQueuePtr)
-			{
+			
 				const auto LoadingOrigin = FIntVector(this->GetActorRotation().GetInverse().RotateVector((PlayerPosition - this->GetActorLocation())/(ChunkSize*DefaultVoxelSize*this->GetActorScale().X)));
 				PlayerPositionUpdatesQueuePtr->Enqueue(TTuple<FIntVector, float>(LoadingOrigin, GetGameTimeSinceCreation()));
 				//Logic for checking for every chunk in the vicinity of the player whether that chunk has been loaded, and if not load it
@@ -206,12 +204,6 @@ void AVoxelWorld::IterateChunkLoading( )
 				}
 
 				OrderedGeneratedChunksToLoadInGame.Empty();
-			}
-		}
-		else
-		{
-			PlayerChunkThreadedWorkOrdersQueuesPtrMap.Remove(CurrentPlayerThreadPair.Key);
-			PlayerPositionUpdatesQueuesPtrMap.Remove(CurrentPlayerThreadPair.Key);
 		}
 	}
 }
@@ -262,7 +254,7 @@ void AVoxelWorld::IterateChunkMeshing()
 void AVoxelWorld::IterateChunkUnloading()
 {
 	/*Unload all chunks beyond loading distance*/
-	for (const auto CurrentPair : PlayerChunkThreadedWorkOrdersQueuesPtrMap)
+	for (const auto CurrentPair : ManagedPlayerDataMap)
 	{
 		if (IsValid(CurrentPair.Key))
 		{
@@ -281,28 +273,20 @@ void AVoxelWorld::IterateChunkUnloading()
 					{
 						NumbersOfPlayerOutsideRangeOfChunkMap.Add(RegisteredChunkState.Key, 1);
 					}
-			
-					// if (ChunkActorsMap.Contains(RegisteredChunkState.Key))
-					// {
-					// 	ChunkActorsMap[RegisteredChunkState.Key]->Destroy();
-					// }
-			
 				}
 			}
 		}
 	}
 	for (auto& ChunkUnloadingScore : NumbersOfPlayerOutsideRangeOfChunkMap)
 	{
-		if (ChunkUnloadingScore.Value == PlayerChunkThreadedWorkOrdersQueuesPtrMap.Num())
+		if (ChunkUnloadingScore.Value == ManagedPlayerDataMap.Num())
 		{
 			ChunkStates.Remove(ChunkUnloadingScore.Key);
 			ChunkActorsMap[ChunkUnloadingScore.Key]->Destroy();
 		}
 	}
 	NumbersOfPlayerOutsideRangeOfChunkMap.Empty();
-
-
-	//TODO: repair this code for multiplayer
+	
 }
 
 bool AVoxelWorld::IsChunkLoaded(FIntVector ChunkLocation) 
@@ -494,7 +478,7 @@ void AVoxelWorld::SaveVoxelWorld()
 
 void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 {
-	/*Destroy the block at a given location regardless of wether or not the chunk is loaded or has even been generated in the first place
+	/*Destroy the block at a given location regardless of whether the chunk is loaded or has even been generated in the first place
 	 * In multiplayer, this function should be multicasted.
 	 */
 	
@@ -642,9 +626,12 @@ void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 			
 			
 	UE_LOG(LogTemp, Warning, TEXT("Created a new voxel thread for player " ))
-	PlayerManagingThreadsMap.Add(PlayerToAdd, CurrentPlayerThread);
-	PlayerPositionUpdatesQueuesPtrMap.Add(PlayerToAdd, CurrentPlayerThread->GetPlayerUpdatesQueue());
-	PlayerChunkThreadedWorkOrdersQueuesPtrMap.Add(PlayerToAdd, CurrentPlayerThread->GetGenerationOrdersQueue());
+	FVoxelWorldManagedPlayerData CurrentPlayerData;
+	CurrentPlayerData.ManagingThread = CurrentPlayerThread;
+	CurrentPlayerData.ChunkThreadedWorkOrdersQueuePtr = CurrentPlayerThread->GetGenerationOrdersQueue();
+	CurrentPlayerData.PositionUpdatesQueuePtr = CurrentPlayerThread->GetPlayerUpdatesQueue();
+
+	ManagedPlayerDataMap.Add(PlayerToAdd, CurrentPlayerData);
 }
 
 FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
@@ -713,10 +700,10 @@ void AVoxelWorld::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	for (const auto CurrentPair : PlayerManagingThreadsMap )
-	if (CurrentPair.Value)
+	for (const auto CurrentPair : ManagedPlayerDataMap )
+	if (CurrentPair.Value.ManagingThread)
 	{
-		CurrentPair.Value->StartShutdown();
+		CurrentPair.Value.ManagingThread->StartShutdown();
 	}
 }
 
