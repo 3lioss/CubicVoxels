@@ -394,15 +394,30 @@ struct FChunkData
 		}
 	}
 
-	static FChunkData EmptyChunkData()
+	static FChunkData EmptyChunkData(bool IsCompressed)
 	{
 		FChunkData Result;
 		auto NullVoxel = FVoxel();
 		NullVoxel.VoxelType = "Null";
+
+		if (IsCompressed)
+		{
+			Result.CompressedChunkData = TArray<FVoxelStack>();
+			Result.CompressedChunkData.Add(FVoxelStack(NullVoxel, ChunkSize*ChunkSize*ChunkSize));
+			Result.IsCompressed = true;
+		}
+		else
+		{
+			Result.UncompressedChunkData =  TArray<FVoxel>();
+			Result.UncompressedChunkData.SetNum(ChunkSize*ChunkSize*ChunkSize);
+			for (int32 i = 0; i < ChunkSize*ChunkSize*ChunkSize; i++)
+			{
+				Result.UncompressedChunkData[i] = NullVoxel;
+			}
+			Result.IsCompressed = false;
+		}
+	
 		
-		Result.CompressedChunkData = TArray<FVoxelStack>();
-		Result.CompressedChunkData.Add(FVoxelStack(NullVoxel, ChunkSize*ChunkSize*ChunkSize));
-		Result.IsCompressed = true;
 		return Result;
 	}
 };

@@ -98,6 +98,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad,  FVoxel (*GenerationFunction) (FVector),  TSharedPtr<FChunkData> ChunkDataPtr)
 {
 	/*Generate a chunk defined additively based on the procedural generator, then generate its mesh data*/
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, TEXT("Starting to generate from additive data"));	
 
 	//Fill the arrays with the chunk's voxels
 	for (int32 x = 0; x < ChunkSize; x++)
@@ -106,14 +107,16 @@ static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQ
 		{
 			for (int32 z = 0; z < ChunkSize; z++)
 			{
-				if (ChunkDataPtr->GetVoxelAt(x,y,z))
+				if (!ChunkDataPtr->GetVoxelAt(x,y,z))
 				{
 					auto const Position = DefaultVoxelSize*FVector(x + ChunkSize*Coordinates.X, y + ChunkSize*Coordinates.Y , z + ChunkSize*Coordinates.Z);
 					
 					ChunkDataPtr->SetVoxel(x,y,z, (*GenerationFunction)(Position));
 				}
 				
-					
+				// FString MyFooString = (ChunkDataPtr->GetVoxelAt(x,y,z).VoxelType).ToString();
+				// const TCHAR* tchar_is_wchar_t_under_the_hood = *MyFooString;
+				// UE_LOG(LogTemp, Display, TEXT("Generated a voxel of type %s"), tchar_is_wchar_t_under_the_hood )
 			}
 		}
 	}
@@ -154,6 +157,7 @@ static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQ
 		}
 	}
 
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, TEXT("Finished generating from additive data"));	
 	ChunkQuadsToLoad->Enqueue(MakeTuple(Coordinates, QuadsData));
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, ChunkDataPtr));
 }

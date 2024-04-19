@@ -68,7 +68,7 @@ void AVoxelWorld::IterateChunkLoading( )
 				PlayerPositionUpdatesQueuePtr->Enqueue(TTuple<FIntVector, float>(LoadingOrigin, GetGameTimeSinceCreation()));
 				//Logic for checking for every chunk in the vicinity of the player whether that chunk has been loaded, and if not load it
 	
-				for (int32 i = 0; i < ViewDistance; i++)
+				for (int32 i = 0; i < ViewDistance; i++) //TODO: exchange the scopes of this loop with the player one for better results
 				{
 					for (auto& Chunk : ViewLayers[i])
 					{
@@ -79,27 +79,30 @@ void AVoxelWorld::IterateChunkLoading( )
 							const auto RegionSavedData = GetRegionSavedData(GetRegionOfChunk(Chunk + LoadingOrigin) );
 							if (RegionSavedData)
 							{
-						
-						
+								
 								const auto ChunkSavedData = RegionSavedData->Find(Chunk + LoadingOrigin);
 								if (ChunkSavedData)
 								{
-									const TSharedPtr<FChunkData> CompressedChunkBlocksPtr(new FChunkData);
-									(*CompressedChunkBlocksPtr) = *ChunkSavedData;
+									const TSharedPtr<FChunkData> ChunkVoxelDataPtr(new FChunkData);
+									(*ChunkVoxelDataPtr) = *ChunkSavedData;
 									auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
 							
-									ChunkGenerationOrder.CompressedChunkBlocksPtr = CompressedChunkBlocksPtr;
+									ChunkGenerationOrder.CompressedChunkBlocksPtr = ChunkVoxelDataPtr;
 									ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
 									ChunkGenerationOrder.OutputChunkFacesQueuePtr = &ChunkQuadsToLoad;
 									ChunkGenerationOrder.ChunkLocation = Chunk + LoadingOrigin;
-
-									if (CompressedChunkBlocksPtr->IsAdditive)
+									
+									if (ChunkVoxelDataPtr->IsAdditive /*true*/)
 									{
+										GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, TEXT("Launching additive chunk data handling"));	
+										UE_LOG(LogTemp, Display, TEXT("Launching additive chunk data handling"))
 										ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GeneratingAndMeshingWithAdditiveData;
 										ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
 									}
 									else
 									{
+										GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, TEXT("Launching absolute chunk data handling"));	
+										UE_LOG(LogTemp, Display, TEXT("Launching absolute chunk data handling"))
 										ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::MeshingFromData;
 									}
 							
@@ -516,10 +519,10 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 			}
 			else
 			{
-				//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block with additive chunk data (1)"));	
+				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block with additive chunk data (1)"));	
 
 				//Create additive data to account for the voxel removal
-				FChunkData AdditiveChunkData = FChunkData::EmptyChunkData();
+				FChunkData AdditiveChunkData = FChunkData::EmptyChunkData(false);
 				AdditiveChunkData.IsAdditive = true;
 				AdditiveChunkData.SetVoxel(BlockLocationInChunk, FVoxel());
 
@@ -529,10 +532,10 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 		}
 		else
 		{
-			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block with additive chunk data (2)"));	
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block with additive chunk data (2)"));	
 
 			//Create additive data to account for the voxel removal
-			FChunkData AdditiveChunkData = FChunkData::EmptyChunkData();
+			FChunkData AdditiveChunkData = FChunkData::EmptyChunkData(false);
 			AdditiveChunkData.IsAdditive = true;
 			AdditiveChunkData.SetVoxel(BlockLocationInChunk, FVoxel());
 
@@ -588,7 +591,7 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 			{
 
 				//Create additive data to account for the voxel removal
-				FChunkData AdditiveChunkData = FChunkData::EmptyChunkData();
+				FChunkData AdditiveChunkData = FChunkData::EmptyChunkData(false);
 				AdditiveChunkData.IsAdditive = true;
 				AdditiveChunkData.SetVoxel(BlockLocationInChunk, Block);
 				
@@ -600,7 +603,7 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 		{
 			
 			//Create additive data to account for the voxel removal
-			FChunkData AdditiveChunkData = FChunkData::EmptyChunkData();
+			FChunkData AdditiveChunkData = FChunkData::EmptyChunkData(false);
 			
 			AdditiveChunkData.IsAdditive = true;
 			AdditiveChunkData.SetVoxel(BlockLocationInChunk, Block);
