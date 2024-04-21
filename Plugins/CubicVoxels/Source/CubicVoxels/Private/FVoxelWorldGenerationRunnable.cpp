@@ -1,21 +1,29 @@
 ﻿// .cpp
-#include "FVoxelThread.h"
+#include "FVoxelWorldGenerationRunnable.h"
 
-bool FVoxelThread::Init() {
+FVoxelWorldGenerationRunnable::FVoxelWorldGenerationRunnable()
+{
+	Thread = FRunnableThread::Create(this, TEXT("World generation Thread"), 0, TPri_AboveNormal);
+}
+
+bool FVoxelWorldGenerationRunnable::Init() {
 	PlayerRelativeLocation = FIntVector(0,0,0);
 	return true;
 }
 
-uint32 FVoxelThread::Run() {
+uint32 FVoxelWorldGenerationRunnable::Run() {
 	while (!bShutdown) {
 
-		//Empty the queue used to communicate with the game thread into an array that can be safely iterated over
+		
+		//Empty the queue used to communicate with the game thread into an array that can be safely sorted
 		FChunkThreadedWorkOrderBase CurrentOrder; 
 		while (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder))
 		{
 			OrderedChunkThreadedWorkOrders.Add(CurrentOrder);
-		}			
-		
+		}
+
+
+		//Sorting the generation orders by distance to the player and executing them
 		OrderedChunkThreadedWorkOrders.Sort([this](const FChunkThreadedWorkOrderBase& A, const FChunkThreadedWorkOrderBase& B)
 		{
 			return IsFartherToPlayer(B,A);
@@ -32,15 +40,15 @@ uint32 FVoxelThread::Run() {
 	return 0;
 }
 
-void FVoxelThread::Exit() {
+void FVoxelWorldGenerationRunnable::Exit() {
 	/* Post-Run code, threaded */
 }
 
-void FVoxelThread::Stop() {
+void FVoxelWorldGenerationRunnable::Stop() {
 	bShutdown = true;
 }
 
-TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* FVoxelThread::GetGenerationOrdersQueue()
+TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* FVoxelWorldGenerationRunnable::GetGenerationOrdersQueue()
 {
 	return &ChunkThreadedWorkOrdersQueue;
 }
@@ -49,13 +57,13 @@ TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* FVoxelThread::GetGenerati
 
 
 
-void FVoxelThread::StartShutdown()
+void FVoxelWorldGenerationRunnable::StartShutdown()
 {
 	ChunkThreadedWorkOrdersQueue.Empty();
 	bShutdown = true;
 }
 
-bool FVoxelThread::IsFartherToPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B)
+bool FVoxelWorldGenerationRunnable::IsFartherToPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B)
 {
 	/*Finds which to-be-generated chunk is closer to the player between A and B*/
 	const auto  CA = A.ChunkLocation - PlayerRelativeLocation;

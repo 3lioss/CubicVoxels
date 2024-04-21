@@ -3,7 +3,7 @@
 
 #include "VoxelWorld.h"
 #include "Enums.h"
-#include "FVoxelThread.h"
+#include "FVoxelWorldGenerationRunnable.h"
 #include "VoxelWorldDataSaveGame.h"
 #include "Kismet/GameplayStatics.h"
 #include "Chunk.h"
@@ -481,12 +481,11 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 			
 			if (LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)].Contains(AffectedChunkLocation))
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block by editing saved data on an existing chunk"));	
+				//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block by editing saved data on an existing chunk"));	
 				LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)][AffectedChunkLocation].RemoveVoxel(BlockLocationInChunk);
 			}
 			else
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block with additive chunk data on an existing region"));	
 				
 				//Create additive data to account for the voxel removal
 				FChunkData AdditiveChunkData = FChunkData::EmptyChunkData(false);
@@ -501,7 +500,6 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 		}
 		else
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block with additive chunk data on a new chunk region"));	
 
 			//Create additive data to account for the voxel removal
 			FChunkData AdditiveChunkData = FChunkData::EmptyChunkData(false);
@@ -591,12 +589,11 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 
 void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 {
-	const auto CurrentPlayerThread = new FVoxelThread();
+	const auto CurrentPlayerRunnable = new FVoxelWorldGenerationRunnable;
 			
-	UE_LOG(LogTemp, Warning, TEXT("Created a new voxel thread for player " ))
 	FVoxelWorldManagedPlayerData CurrentPlayerData;
-	CurrentPlayerData.ManagingThread = CurrentPlayerThread;
-	CurrentPlayerData.ChunkThreadedWorkOrdersQueuePtr = CurrentPlayerThread->GetGenerationOrdersQueue();
+	CurrentPlayerData.ManagingThread = CurrentPlayerRunnable;
+	CurrentPlayerData.ChunkThreadedWorkOrdersQueuePtr = CurrentPlayerRunnable->GetGenerationOrdersQueue();
 
 	ManagedPlayerDataMap.Add(PlayerToAdd, CurrentPlayerData);
 }
@@ -652,20 +649,14 @@ void AVoxelWorld::CreateChunkAt(FIntVector ChunkLocation,
 								ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
 								ChunkGenerationOrder.OutputChunkFacesQueuePtr = &ChunkQuadsToLoad;
 								ChunkGenerationOrder.ChunkLocation = ChunkLocation;
-
-								UE_LOG(LogTemp, Display, TEXT("Chunk %d, %d, %d marked as additive: %hs"),ChunkLocation.X, ChunkLocation.Y, ChunkLocation.Z, ChunkVoxelDataPtr->IsAdditive ? "true" : "false")
 								
 								if (ChunkVoxelDataPtr->IsAdditive)
 								{
-									GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, TEXT("Launching additive chunk data handling"));	
-									UE_LOG(LogTemp, Display, TEXT("Launching additive chunk data handling"))
 									ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GeneratingAndMeshingWithAdditiveData;
 									ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
 								}
 								else
 								{
-									GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Launching absolute chunk data handling"));	
-									UE_LOG(LogTemp, Display, TEXT("Launching absolute chunk data handling"))
 									ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::MeshingFromData;
 								}
 							

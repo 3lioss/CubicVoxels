@@ -1,10 +1,10 @@
 ﻿#pragma once
-#include "FVoxelThread.h"
+#include "FVoxelWorldGenerationRunnable.h"
 #include "Containers/Queue.h" 
 
 
 struct FVoxelWorldManagedPlayerData
 {
-	FVoxelThread* ManagingThread;
+	FVoxelWorldGenerationRunnable* ManagingThread;
 	TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* ChunkThreadedWorkOrdersQueuePtr;
 };

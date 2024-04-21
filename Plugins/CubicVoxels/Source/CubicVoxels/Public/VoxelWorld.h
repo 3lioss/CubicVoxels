@@ -6,8 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "VoxelStructs.h"
 #include "ReplicationStructs.h"
-#include "VoxelChunkThreadingUtilities.h"
-#include "FVoxelThread.h"
+#include "FVoxelWorldGenerationRunnable.h"
 #include "VoxelWorld.generated.h"
 
 class AChunk;

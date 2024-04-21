@@ -3,18 +3,15 @@
 #include "CoreMinimal.h"
 #include "ChunkThreadingStructs.h"
 
-class FVoxelThread : public FRunnable {
+class FVoxelWorldGenerationRunnable : public FRunnable {
 public:
-	FVoxelThread(  ) {
-		Thread = FRunnableThread::Create(this, TEXT("VoxelThread"));
-	};
+	FVoxelWorldGenerationRunnable();
 
 	virtual bool Init() override;
 	virtual uint32 Run() override;
 	virtual void Exit() override;
 	virtual void Stop() override;
 
-	FRunnableThread* Thread;
 	bool bShutdown= false;
 
 	//Functions to retrieve pointers to the queues used to communicate with the game thread, they are used on the game thread
@@ -32,4 +29,8 @@ private:
 	TArray< FChunkThreadedWorkOrderBase> OrderedChunkThreadedWorkOrders;
 
 	bool IsFartherToPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B);
+
+protected:
+	FRunnableThread* Thread = nullptr;
+
 };
