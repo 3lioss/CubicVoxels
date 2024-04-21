@@ -47,12 +47,7 @@ TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* FVoxelThread::GetGenerati
 
 
 
-void FVoxelThread::UpdatePlayerRelativeLocation(FIntVector NewLocation)
-{
-	PlayerPositionUpdateSection.Lock();
-	PlayerRelativeLocation = NewLocation;
-	PlayerPositionUpdateSection.Unlock();
-}
+
 
 void FVoxelThread::StartShutdown()
 {

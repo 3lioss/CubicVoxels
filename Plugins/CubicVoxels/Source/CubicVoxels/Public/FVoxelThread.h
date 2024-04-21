@@ -23,14 +23,11 @@ public:
 	//Queue used to communicate with the game thread
 	TQueue< FChunkThreadedWorkOrderBase, EQueueMode::Mpsc> ChunkThreadedWorkOrdersQueue;
 
-	//Method used to update the thread's reference for the player position
-	void UpdatePlayerRelativeLocation(FIntVector NewLocation);
-
 	void StartShutdown();
+	
+	FIntVector PlayerRelativeLocation;
 
 private:
-	FCriticalSection PlayerPositionUpdateSection;
-	FIntVector PlayerRelativeLocation;
 	
 	TArray< FChunkThreadedWorkOrderBase> OrderedChunkThreadedWorkOrders;
 

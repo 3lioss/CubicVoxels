@@ -28,11 +28,6 @@ public:
 	int32 ViewDistance;
 	int32 VerticalViewDistance;
 
-	//Main functions called on actor ticking
-	void IterateChunkLoading();
-	void IterateChunkMeshing();
-	void IterateChunkUnloading();
-
 	//Table that links voxel types with their materials
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	class UDataTable* VoxelPhysicalCharacteristicsTable;
@@ -69,6 +64,13 @@ public:
 	
 private:
 
+	//Main functions called on actor ticking
+	void UpdatePlayerPositionsOnThreads();
+	void IterateChunkCreationNearPlayers();
+	void IterateChunkSidesGenerationNearPlayers();
+	void IterateChunkMeshing();
+	void IterateChunkUnloading();
+
 	TMap<FIntVector, EChunkState> ChunkStates;
 	TMap<FIntVector, TObjectPtr<AChunk>> ChunkActorsMap;
 	TSet<FIntVector> ChunksToSave;
@@ -86,11 +88,14 @@ private:
 
 	void RegisterChunkForSaving(FIntVector3 ChunkLocation);
 
+	FCriticalSection PlayerPositionsUpdateOnThreadsMutex;
+
+
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	virtual void BeginDestroy() override;
-
 	
 	TArray<TSet<FIntVector>> ViewLayers;
 	TArray<TTuple<FIntVector, TSharedPtr<FChunkData>>> OrderedGeneratedChunksToLoadInGame;

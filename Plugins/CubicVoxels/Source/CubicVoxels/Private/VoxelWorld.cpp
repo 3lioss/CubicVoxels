@@ -49,9 +49,10 @@ AVoxelWorld::AVoxelWorld()
 	WorldGenerationFunction = &DefaultGenerateBlockAt;
 
 	SetActorScale3D(FVector(1,1,1));
+
 }
 
-void AVoxelWorld::IterateChunkLoading( )
+void AVoxelWorld::IterateChunkCreationNearPlayers( )
 {
 	/*Register all chunks in loading distance for loading for each managed player*/
 	for (int32 i = 0; i < ViewDistance; i++)
@@ -61,11 +62,9 @@ void AVoxelWorld::IterateChunkLoading( )
 			if (IsValid(CurrentPlayerThreadPair.Key))
 			{
 				//Updating the generating thread's value for the position of the player
-				//TODO: Should be replaced by a more simple code calling a method on the thread to update its local reference of the player position
 				FVector PlayerPosition = CurrentPlayerThreadPair.Key->GetPawn()->GetActorLocation();
-				const auto LoadingOrigin = FIntVector(this->GetActorRotation().GetInverse().RotateVector((PlayerPosition - this->GetActorLocation())/(ChunkSize*DefaultVoxelSize*this->GetActorScale().X)));
-				CurrentPlayerThreadPair.Value.ManagingThread->UpdatePlayerRelativeLocation(LoadingOrigin);
-				
+				const auto LoadingOrigin = FloorVector(this->GetActorRotation().GetInverse().RotateVector((PlayerPosition - this->GetActorLocation())/(ChunkSize*DefaultVoxelSize*this->GetActorScale().X)));
+
 				//Logic for generating the chunks in proximity to the player
 				for (auto& Chunk : ViewLayers[i])
 				{
@@ -75,6 +74,14 @@ void AVoxelWorld::IterateChunkLoading( )
 		}
 	}
 
+	
+	
+}
+
+void AVoxelWorld::IterateChunkSidesGenerationNearPlayers()
+{
+	//TODO: Review and overhaul this part of code
+	
 	for (const auto CurrentPlayerThreadPair : ManagedPlayerDataMap)
 	{
 		if (IsValid(CurrentPlayerThreadPair.Key))
@@ -171,7 +178,6 @@ void AVoxelWorld::IterateChunkLoading( )
 			OrderedGeneratedChunksToLoadInGame.Empty();
 		}
 	}
-	
 }
 
 void AVoxelWorld::IterateChunkMeshing()
@@ -586,10 +592,6 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 {
 	const auto CurrentPlayerThread = new FVoxelThread();
-
-	// if(GEngine)
-	// {GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Created thread"));}
-			
 			
 	UE_LOG(LogTemp, Warning, TEXT("Created a new voxel thread for player " ))
 	FVoxelWorldManagedPlayerData CurrentPlayerData;
@@ -706,6 +708,19 @@ FIntVector AVoxelWorld::GetRegionOfChunk(FIntVector ChunkCoordinates)
 	return FIntVector(RegionX, RegionY, RegionZ);
 }
 
+void AVoxelWorld::UpdatePlayerPositionsOnThreads()
+{
+	PlayerPositionsUpdateOnThreadsMutex.Lock();
+	for (const auto CurrentPlayerThreadPair : ManagedPlayerDataMap)
+	{
+		FVector PlayerPosition = CurrentPlayerThreadPair.Key->GetPawn()->GetActorLocation();
+		const auto LoadingOrigin = FloorVector(this->GetActorRotation().GetInverse().RotateVector((PlayerPosition - this->GetActorLocation())/(ChunkSize*DefaultVoxelSize*this->GetActorScale().X)));
+		CurrentPlayerThreadPair.Value.ManagingThread->PlayerRelativeLocation = LoadingOrigin;
+	}
+	PlayerPositionsUpdateOnThreadsMutex.Unlock();
+
+}
+
 // Called when the game starts or when spawned
 void AVoxelWorld::BeginPlay()
 {
@@ -743,7 +758,11 @@ void AVoxelWorld::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	
-	IterateChunkLoading();
+	UpdatePlayerPositionsOnThreads();
+	
+	IterateChunkCreationNearPlayers();
+
+	IterateChunkSidesGenerationNearPlayers();
 	
 	IterateChunkMeshing();
 	
