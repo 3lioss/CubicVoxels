@@ -19,16 +19,18 @@ public:
 
 	//Functions to retrieve pointers to the queues used to communicate with the game thread, they are used on the game thread
 	TQueue< FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* GetGenerationOrdersQueue();
-	TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc>* GetPlayerUpdatesQueue();
 	
-	//Queues used to communicate with the game thread
+	//Queue used to communicate with the game thread
 	TQueue< FChunkThreadedWorkOrderBase, EQueueMode::Mpsc> ChunkThreadedWorkOrdersQueue;
-	TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc> PlayerPositionUpdates;
+
+	//Method used to update the thread's reference for the player position
+	void UpdatePlayerRelativeLocation(FIntVector NewLocation);
 
 	void StartShutdown();
 
 private:
-	FIntVector PlayerRelativeOrigin;
+	FCriticalSection PlayerPositionUpdateSection;
+	FIntVector PlayerRelativeLocation;
 	
 	TArray< FChunkThreadedWorkOrderBase> OrderedChunkThreadedWorkOrders;
 

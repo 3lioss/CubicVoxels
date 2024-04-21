@@ -227,7 +227,7 @@ static FIntVector NormaliseCyclicalCoordinates(FIntVector Coordinates, int32 Nor
 	return FIntVector( Modulo(Coordinates.X,  Norm), Modulo(Coordinates.Y , Norm), Modulo(Coordinates.Z , Norm));
 }
 
-static void ComputeChunkSideFacesFromData(FChunkData* DataOfChunkToAddFacesTo, FChunkData* NeighbourChunkBlocks, int32 DirectionIndex, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* OuputChunkQuadsQueue, FIntVector ChunkToAddFacesToCoordinates)
+static void ComputeChunkSideFacesFromData(TSharedPtr<FChunkData> DataOfChunkToAddFacesTo, TSharedPtr<FChunkData> NeighbourChunkBlocks, int32 DirectionIndex, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* OuputChunkQuadsQueue, FIntVector ChunkToAddFacesToCoordinates)
 {
 	/*Function to compute the faces of a chunks' sides*/
 

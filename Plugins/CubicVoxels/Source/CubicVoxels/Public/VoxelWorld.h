@@ -74,6 +74,8 @@ private:
 	TSet<FIntVector> ChunksToSave;
 	TSet<FIntVector> RegionsToSave;
 
+	void CreateChunkAt(FIntVector ChunkLocation, TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* OrdersQueuePtr);
+
 	//Map of all the regions that are currently loaded in memory, in each region the chunks are located in absolute chunk coordinates
 	TMap<FIntVector, TMap<FIntVector, FChunkData>> LoadedRegions; 
 
@@ -106,34 +108,34 @@ public:
 };
 
 
-class FVoxelChunkSideCookingAsyncTask : public FNonAbandonableTask //Asynchronous task that generates a chunk's face's quad data
-{
-	FChunkData* TaskChunkToContinueLoadingBlocks;
-	FChunkData* TaskNeighbourChunkBlocks;
-	int32 TaskDirectionIndex;
-	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* TaskChunkQuadsToLoad;
-	FIntVector TaskChunkToContinueLoadingCoordinates;
- 
-public:
-	//Default constructor
-	FVoxelChunkSideCookingAsyncTask(FChunkData* ChunkToContinueLoadingBlocks, FChunkData* TaskNeighbourChunkBlocks, int32 DirectionIndex, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad, FIntVector ChunkToContinueLoadingCoordinates)
-	{
-		this->TaskChunkToContinueLoadingBlocks = ChunkToContinueLoadingBlocks;
-		this->TaskNeighbourChunkBlocks = TaskNeighbourChunkBlocks;
-		this->TaskDirectionIndex = DirectionIndex;
-		this->TaskChunkQuadsToLoad = ChunkQuadsToLoad;
-		this->TaskChunkToContinueLoadingCoordinates = ChunkToContinueLoadingCoordinates;
-	}
- 
-	//This function is needed from the API of the engine. 
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(PrimeCalculationAsyncTask, STATGROUP_ThreadPoolAsyncTasks);
-	}
- 
-	//This function is executed when we tell our task to execute
-	void DoWork()
-	{
-		ComputeChunkSideFacesFromData( TaskChunkToContinueLoadingBlocks, TaskNeighbourChunkBlocks, TaskDirectionIndex, TaskChunkQuadsToLoad,  TaskChunkToContinueLoadingCoordinates);
-	}
-};
+// class FVoxelChunkSideCookingAsyncTask : public FNonAbandonableTask //Asynchronous task that generates a chunk's face's quad data
+// {
+// 	FChunkData* TaskChunkToContinueLoadingBlocks;
+// 	FChunkData* TaskNeighbourChunkBlocks;
+// 	int32 TaskDirectionIndex;
+// 	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* TaskChunkQuadsToLoad;
+// 	FIntVector TaskChunkToContinueLoadingCoordinates;
+//  
+// public:
+// 	//Default constructor
+// 	FVoxelChunkSideCookingAsyncTask(FChunkData* ChunkToContinueLoadingBlocks, FChunkData* TaskNeighbourChunkBlocks, int32 DirectionIndex, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad, FIntVector ChunkToContinueLoadingCoordinates)
+// 	{
+// 		this->TaskChunkToContinueLoadingBlocks = ChunkToContinueLoadingBlocks;
+// 		this->TaskNeighbourChunkBlocks = TaskNeighbourChunkBlocks;
+// 		this->TaskDirectionIndex = DirectionIndex;
+// 		this->TaskChunkQuadsToLoad = ChunkQuadsToLoad;
+// 		this->TaskChunkToContinueLoadingCoordinates = ChunkToContinueLoadingCoordinates;
+// 	}
+//  
+// 	//This function is needed from the API of the engine. 
+// 	FORCEINLINE TStatId GetStatId() const
+// 	{
+// 		RETURN_QUICK_DECLARE_CYCLE_STAT(PrimeCalculationAsyncTask, STATGROUP_ThreadPoolAsyncTasks);
+// 	}
+//  
+// 	//This function is executed when we tell our task to execute
+// 	void DoWork()
+// 	{
+// 		ComputeChunkSideFacesFromData( TaskChunkToContinueLoadingBlocks, TaskNeighbourChunkBlocks, TaskDirectionIndex, TaskChunkQuadsToLoad,  TaskChunkToContinueLoadingCoordinates);
+// 	}
+// };

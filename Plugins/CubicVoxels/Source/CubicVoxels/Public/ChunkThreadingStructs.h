@@ -14,7 +14,11 @@ struct FChunkThreadedWorkOrderBase
 	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* OutputChunkFacesQueuePtr;
 
 	FVoxel (*GenerationFunction) (FVector);
-	TSharedPtr<FChunkData> CompressedChunkBlocksPtr;
+	TSharedPtr<FChunkData> TargetChunkDataPtr;
+
+	//Data specific to chunk sides generation orders
+	TSharedPtr<FChunkData> NeighboringChunkDataPtr;
+	int32 DirectionIndex;
 
 	//Method that generates the underlying chunk
 	void SendOrder()
@@ -26,12 +30,18 @@ struct FChunkThreadedWorkOrderBase
 
 		if (OrderType == EChunkThreadedWorkOrderType::GeneratingAndMeshingWithAdditiveData)
 		{
-			GenerateUnloadedDataAndComputeInsideFaces(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, GenerationFunction, CompressedChunkBlocksPtr);
+			GenerateUnloadedDataAndComputeInsideFaces(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, GenerationFunction, TargetChunkDataPtr);
 		}
 
 		if (OrderType == EChunkThreadedWorkOrderType::MeshingFromData)
 		{
-			ComputeInsideFacesOfLoadedChunk(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, CompressedChunkBlocksPtr);
+			ComputeInsideFacesOfLoadedChunk(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, TargetChunkDataPtr);
+		}
+
+		if(OrderType == EChunkThreadedWorkOrderType::GeneratingExistingChunksSides)
+		{
+			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Launching order for chunk sides generation"));
+			ComputeChunkSideFacesFromData(TargetChunkDataPtr, NeighboringChunkDataPtr, DirectionIndex, OutputChunkFacesQueuePtr, ChunkLocation);
 		}
 		
 	};

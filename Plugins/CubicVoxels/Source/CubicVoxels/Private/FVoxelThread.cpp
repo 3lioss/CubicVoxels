@@ -2,55 +2,32 @@
 #include "FVoxelThread.h"
 
 bool FVoxelThread::Init() {
-	PlayerRelativeOrigin = FIntVector(0,0,0);
+	PlayerRelativeLocation = FIntVector(0,0,0);
 	return true;
 }
 
 uint32 FVoxelThread::Run() {
 	while (!bShutdown) {
 
-		//Look at all the updates given on the player's position, and keep the most recent one
-		float LastSavedTime = 0;
-		TTuple<FIntVector, float> CurrentPlayerPositionUpdate;
-
-		while(PlayerPositionUpdates.Dequeue(CurrentPlayerPositionUpdate))
-		{
-			if (CurrentPlayerPositionUpdate.Get<1>() > LastSavedTime)
-			{
-				LastSavedTime = CurrentPlayerPositionUpdate.Get<1>();
-				PlayerRelativeOrigin = CurrentPlayerPositionUpdate.Get<0>();
-			}
-		}
-
-		
+		//Empty the queue used to communicate with the game thread into an array that can be safely iterated over
 		FChunkThreadedWorkOrderBase CurrentOrder; 
-		if (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder))
+		while (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder))
 		{
-			//Empty the queue used to communicate with the game thread into an array that can be safely iterated over
 			OrderedChunkThreadedWorkOrders.Add(CurrentOrder);
 		}			
-		else
+		
+		OrderedChunkThreadedWorkOrders.Sort([this](const FChunkThreadedWorkOrderBase& A, const FChunkThreadedWorkOrderBase& B)
 		{
-			
-			if (!OrderedChunkThreadedWorkOrders.IsEmpty())
-			{
-				//Retrieving the chunk closest to the player
-				auto NextOrder =  OrderedChunkThreadedWorkOrders[0];
-				int32 NextOrderIndex = 0;
-				for (int32 i = 0 ;	i < OrderedChunkThreadedWorkOrders.Num(); i++)
-				{
-					if (IsFartherToPlayer(NextOrder, OrderedChunkThreadedWorkOrders[i]))
-					{
-						NextOrder = OrderedChunkThreadedWorkOrders[i];
-						NextOrderIndex = i;
-					}
-				}
-				
-				OrderedChunkThreadedWorkOrders.RemoveAt(NextOrderIndex);
-				NextOrder.SendOrder();
-			} 
-			
+			return IsFartherToPlayer(B,A);
+		});
+		for (int32 i = 0; i < OrderedChunkThreadedWorkOrders.Num(); i++)
+		{
+			OrderedChunkThreadedWorkOrders[i].SendOrder();
 		}
+		OrderedChunkThreadedWorkOrders.Empty();
+		
+			
+		
 	}
 	return 0;
 }
@@ -68,9 +45,13 @@ TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* FVoxelThread::GetGenerati
 	return &ChunkThreadedWorkOrdersQueue;
 }
 
-TQueue<TTuple<FIntVector, float>, EQueueMode::Mpsc>* FVoxelThread::GetPlayerUpdatesQueue()
+
+
+void FVoxelThread::UpdatePlayerRelativeLocation(FIntVector NewLocation)
 {
-	return &PlayerPositionUpdates;
+	PlayerPositionUpdateSection.Lock();
+	PlayerRelativeLocation = NewLocation;
+	PlayerPositionUpdateSection.Unlock();
 }
 
 void FVoxelThread::StartShutdown()
@@ -82,8 +63,8 @@ void FVoxelThread::StartShutdown()
 bool FVoxelThread::IsFartherToPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B)
 {
 	/*Finds which to-be-generated chunk is closer to the player between A and B*/
-	const auto  CA = A.ChunkLocation - PlayerRelativeOrigin;
-	const auto  CB = B.ChunkLocation - PlayerRelativeOrigin; 
+	const auto  CA = A.ChunkLocation - PlayerRelativeLocation;
+	const auto  CB = B.ChunkLocation - PlayerRelativeLocation; 
 
 	return (CA.X*CA.X + CA.Y*CA.Y + CA.Z*CA.Z > CB.X*CB.X + CB.Y*CB.Y + CB.Z*CB.Z);
 }

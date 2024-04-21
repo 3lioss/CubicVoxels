@@ -9,5 +9,5 @@ enum class EChunkState
 //Enum that represents the type of threaded work to be realised to generate a given chunk
 enum class EChunkThreadedWorkOrderType
 {
-	GenerationAndMeshing, MeshingFromData, GeneratingAndMeshingWithAdditiveData
+	GenerationAndMeshing, MeshingFromData, GeneratingAndMeshingWithAdditiveData, GeneratingExistingChunksSides
 };
