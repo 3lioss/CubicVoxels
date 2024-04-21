@@ -106,11 +106,12 @@ struct FChunkData
 	TArray<FVoxelStack> CompressedChunkData;
 
 	UPROPERTY(SaveGame)
-	bool IsAdditive = false;
-
+	bool IsAdditive;
+	
 	FChunkData()
 	{
 		UncompressedChunkData.SetNum(ChunkSize*ChunkSize*ChunkSize);
+		IsAdditive = false;
 	}
 
 	//Lookup functions
@@ -348,6 +349,9 @@ struct FChunkData
 		{
 			UncompressedChunkData = A.UncompressedChunkData;
 		}
+
+		IsAdditive = A.IsAdditive;
+		
 		return *this;
 	}
 
@@ -397,6 +401,7 @@ struct FChunkData
 	static FChunkData EmptyChunkData(bool IsCompressed)
 	{
 		FChunkData Result;
+		Result.IsAdditive = true;
 		auto NullVoxel = FVoxel();
 		NullVoxel.VoxelType = "Null";
 
