@@ -3,7 +3,7 @@
 
 FVoxelWorldGenerationRunnable::FVoxelWorldGenerationRunnable()
 {
-	Thread = FRunnableThread::Create(this, TEXT("World generation Thread"), 0, TPri_AboveNormal);
+	Thread = FRunnableThread::Create(this, TEXT("World generation Thread"), 0, TPri_Normal);
 }
 
 bool FVoxelWorldGenerationRunnable::Init() {
@@ -13,28 +13,27 @@ bool FVoxelWorldGenerationRunnable::Init() {
 
 uint32 FVoxelWorldGenerationRunnable::Run() {
 	while (!bShutdown) {
-
 		
 		//Empty the queue used to communicate with the game thread into an array that can be safely sorted
-		FChunkThreadedWorkOrderBase CurrentOrder; 
-		while (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder))
+		FChunkThreadedWorkOrderBase CurrentOrder;
+		while (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder) )
 		{
 			OrderedChunkThreadedWorkOrders.Add(CurrentOrder);
 		}
-
 
 		//Sorting the generation orders by distance to the player and executing them
 		OrderedChunkThreadedWorkOrders.Sort([this](const FChunkThreadedWorkOrderBase& A, const FChunkThreadedWorkOrderBase& B)
 		{
 			return IsFartherToPlayer(B,A);
 		});
-		for (int32 i = 0; i < OrderedChunkThreadedWorkOrders.Num(); i++)
+		
+		for (int32 i = 0; i < OrderedChunkThreadedWorkOrders.Num() ; i++)
 		{
 			OrderedChunkThreadedWorkOrders[i].SendOrder();
 		}
 		OrderedChunkThreadedWorkOrders.Empty();
 		
-			
+		
 		
 	}
 	return 0;
@@ -52,9 +51,6 @@ TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* FVoxelWorldGenerationRunn
 {
 	return &ChunkThreadedWorkOrdersQueue;
 }
-
-
-
 
 
 void FVoxelWorldGenerationRunnable::StartShutdown()

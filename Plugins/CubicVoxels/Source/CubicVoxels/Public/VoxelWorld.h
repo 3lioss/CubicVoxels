@@ -66,7 +66,7 @@ private:
 	//Main functions called on actor ticking
 	void UpdatePlayerPositionsOnThreads();
 	void IterateChunkCreationNearPlayers();
-	void IterateChunkSidesGenerationNearPlayers();
+	void IterateGeneratedChunkLoadingAndSidesGeneration();
 	void IterateChunkMeshing();
 	void IterateChunkUnloading();
 
@@ -89,6 +89,8 @@ private:
 
 	FCriticalSection PlayerPositionsUpdateOnThreadsMutex;
 
+	int32 DistanceToNearestPlayer(FIntVector ChunkLocation);
+	TObjectPtr<APlayerController> NearestPlayerToChunk(FIntVector ChunkLocation);
 
 protected:
 	// Called when the game starts or when spawned
@@ -96,7 +98,7 @@ protected:
 	virtual void BeginDestroy() override;
 	
 	TArray<TSet<FIntVector>> ViewLayers;
-	TArray<TTuple<FIntVector, TSharedPtr<FChunkData>>> OrderedGeneratedChunksToLoadInGame;
+	TArray<TTuple<FIntVector, TSharedPtr<FChunkData>>> GeneratedChunksToLoadByDistanceToNearestPlayer;
 	TMap<FIntVector, uint32> NumbersOfPlayerOutsideRangeOfChunkMap;
 	TQueue<FChunkGeometry> ChunkGeometryToBeLoadedLater;
 	

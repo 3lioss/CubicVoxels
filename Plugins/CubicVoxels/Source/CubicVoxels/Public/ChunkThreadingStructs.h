@@ -11,7 +11,7 @@ struct FChunkThreadedWorkOrderBase
 	FIntVector ChunkLocation;
 	EChunkThreadedWorkOrderType OrderType;
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* OutputChunkDataQueuePtr;
-	TQueue< FChunkGeometry, EQueueMode::Mpsc>* OutputChunkFacesQueuePtr;
+	TQueue< FChunkGeometry, EQueueMode::Mpsc>* GeneratedChunkGeometryToLoadQueuePtr;
 
 	FVoxel (*GenerationFunction) (FVector);
 	TSharedPtr<FChunkData> TargetChunkDataPtr;
@@ -25,23 +25,23 @@ struct FChunkThreadedWorkOrderBase
 	{
 		if (OrderType == EChunkThreadedWorkOrderType::GenerationAndMeshing)
 		{
-			GenerateChunkDataAndComputeInsideFaces(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, GenerationFunction);
+			GenerateChunkDataAndComputeInsideFaces(ChunkLocation, OutputChunkDataQueuePtr, GeneratedChunkGeometryToLoadQueuePtr, GenerationFunction);
 		}
 
 		if (OrderType == EChunkThreadedWorkOrderType::GeneratingAndMeshingWithAdditiveData)
 		{
-			GenerateUnloadedDataAndComputeInsideFaces(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, GenerationFunction, TargetChunkDataPtr);
+			GenerateUnloadedDataAndComputeInsideFaces(ChunkLocation, OutputChunkDataQueuePtr, GeneratedChunkGeometryToLoadQueuePtr, GenerationFunction, TargetChunkDataPtr);
 		}
 
 		if (OrderType == EChunkThreadedWorkOrderType::MeshingFromData)
 		{
-			ComputeInsideFacesOfLoadedChunk(ChunkLocation, OutputChunkDataQueuePtr, OutputChunkFacesQueuePtr, TargetChunkDataPtr);
+			ComputeInsideFacesOfLoadedChunk(ChunkLocation, OutputChunkDataQueuePtr, GeneratedChunkGeometryToLoadQueuePtr, TargetChunkDataPtr);
 		}
 
 		if(OrderType == EChunkThreadedWorkOrderType::GeneratingExistingChunksSides)
 		{
 			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Launching order for chunk sides generation"));
-			ComputeChunkSideFacesFromData(TargetChunkDataPtr, NeighboringChunkDataPtr, DirectionIndex, OutputChunkFacesQueuePtr, ChunkLocation);
+			ComputeChunkSideFacesFromData(TargetChunkDataPtr, NeighboringChunkDataPtr, DirectionIndex, GeneratedChunkGeometryToLoadQueuePtr, ChunkLocation);
 		}
 		
 	};
