@@ -91,6 +91,7 @@ private:
 
 	int32 DistanceToNearestPlayer(FIntVector ChunkLocation);
 	TObjectPtr<APlayerController> NearestPlayerToChunk(FIntVector ChunkLocation);
+	
 
 protected:
 	// Called when the game starts or when spawned
@@ -105,6 +106,9 @@ protected:
 	int32 OneNorm(FIntVector Vector) const;
 	
 	static FVoxel DefaultGenerateBlockAt(FVector Position);
+
+	void AddGeometryToChunk(FIntVector ChunkLocation, FChunkGeometry GeometryData);
+	
 
 public:	
 	// Called every frame

@@ -17,13 +17,15 @@ AChunk::AChunk()
 	Mesh->bUseAsyncCooking = true;
 	bReplicates = false;
 
+	IsInsideGeometryLoaded = false;
+
 	VoxelCharacteristicsData = ConstructorHelpers::FObjectFinder<UDataTable>(TEXT("/Script/Engine.DataTable'/CubicVoxels/DefaultVoxelCharacteistics.DefaultVoxelCharacteistics'")).Object;
 }
 
 void AChunk::LoadBlocks(TSharedPtr<FChunkData> InputVoxelData)
 {
 	/*Sets the voxel data of the chunk */ 
-	BlocksData = InputVoxelData;
+	BlocksDataPtr = InputVoxelData;
 }
 
 void AChunk::AddQuads(TMap<FIntVector4, FVoxel> VoxelQuadsToAdd)
@@ -42,6 +44,72 @@ void AChunk::RemoveQuad(FIntVector4 Quad)
 {
 	/*Removes a face at the given location*/
 	VoxelQuads.Remove(Quad);
+}
+
+void AChunk::ShowFaceGenerationStatus()
+{
+	if (IsInsideGeometryLoaded)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Inside geometry loaded"));	
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Inside geometry not loaded"));	
+	}
+
+	if (IsSideGeometryLoaded[0])
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Side 0 geometry loaded"));	
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Side 0 geometry not loaded"));	
+	}
+
+	if (IsSideGeometryLoaded[1])
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Side 1 geometry loaded"));	
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Side 1 geometry not loaded"));	
+	}
+
+	if (IsSideGeometryLoaded[2])
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Side 2 geometry loaded"));	
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Side 2 geometry not loaded"));	
+	}
+
+	if (IsSideGeometryLoaded[3])
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Side 3 geometry loaded"));	
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Side 3 geometry not loaded"));	
+	}
+
+	if (IsSideGeometryLoaded[4])
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Side 4 geometry loaded"));	
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Side 4 geometry not loaded"));	
+	}
+	
+	if (IsSideGeometryLoaded[5])
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Side 5 geometry loaded"));	
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Side 5 geometry not loaded"));	
+	}
 }
 
 void AChunk::BeginPlay()
@@ -152,7 +220,7 @@ void AChunk::RenderChunk(float VoxelSize)
 		
 	}
 	//TODO: move this to asynchronous code
-	FChunkData::Compress(*BlocksData);
+	FChunkData::Compress(*BlocksDataPtr);
 }
 
 void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
@@ -195,7 +263,7 @@ void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 		VoxelQuads.Remove(FIntVector4(BlockLocation.X, BlockLocation.Y, BlockLocation.Z, i));
 		if (IsInsideChunk(Neighbors[i]))
 		{
-			const auto NeighboringVoxel = BlocksData->GetVoxelAt(Neighbors[i]);
+			const auto NeighboringVoxel = BlocksDataPtr->GetVoxelAt(Neighbors[i]);
 			if ((NeighboringVoxel != DefaultVoxel) && !VoxelQuads.Contains(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, OppositeDirections[i]))) // TO DO: modify this check to be able to delete transparent blocks
 			{
 				VoxelQuads.Add(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, OppositeDirections[i]), NeighboringVoxel);
@@ -208,7 +276,7 @@ void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 				
 				
 				const auto NeighborPtr = OwningWorld->GetChunkAt(NeighboringChunks[i]);
-				const auto NeighboringVoxel = NeighborPtr->BlocksData->GetVoxelAt(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize));
+				const auto NeighboringVoxel = NeighborPtr->BlocksDataPtr->GetVoxelAt(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize));
 				if ((NeighboringVoxel != DefaultVoxel) && !NeighborPtr->HasQuadAt(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, OppositeDirections[i])))
 				{
 
@@ -224,7 +292,7 @@ void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 			}
 		}
 	}
-	BlocksData->RemoveVoxel(BlockLocation);
+	BlocksDataPtr->RemoveVoxel(BlockLocation);
 	RenderChunk(DefaultVoxelSize);
 	
 }
@@ -269,7 +337,7 @@ void AChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 		
 		if (IsInsideChunk(Neighbors[i]))
 		{
-			const auto NeighboringVoxel = BlocksData->GetVoxelAt(Neighbors[i]);
+			const auto NeighboringVoxel = BlocksDataPtr->GetVoxelAt(Neighbors[i]);
 			if ((NeighboringVoxel.IsTransparent) && !VoxelQuads.Contains(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, i)) && (!BlockType.IsTransparent || (NeighboringVoxel == BlockType)))
 			{
 				VoxelQuads.Remove(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, OppositeDirections[i]));
@@ -280,7 +348,7 @@ void AChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 			if (OwningWorld->IsChunkLoaded(NeighboringChunks[i]))
 			{
 				const auto NeighborPtr = OwningWorld->GetChunkAt(NeighboringChunks[i]);
-				const auto NeighboringVoxel = NeighborPtr->BlocksData->GetVoxelAt(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize));
+				const auto NeighboringVoxel = NeighborPtr->BlocksDataPtr->GetVoxelAt(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize));
 				
 				if ((NeighboringVoxel.IsTransparent) && !NeighborPtr->HasQuadAt(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, i)) && (!BlockType.IsTransparent || (NeighboringVoxel == BlockType)))
 				{
@@ -291,7 +359,7 @@ void AChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 		}
 	}
 
-	BlocksData->SetVoxel(BlockLocation, BlockType);
+	BlocksDataPtr->SetVoxel(BlockLocation, BlockType);
 	
 	RenderChunk(DefaultVoxelSize);
 	

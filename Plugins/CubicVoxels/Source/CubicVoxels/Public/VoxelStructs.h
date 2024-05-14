@@ -97,6 +97,8 @@ struct FChunkGeometry
 	FIntVector ChunkLocation;
 	
 	TMap<FIntVector4, FVoxel> Geometry;
+
+	int32 DirectionIndex; //Takes a value between 0 and 5 for a chunk's side, and something else for a chunk's inside
 };
 
 USTRUCT()

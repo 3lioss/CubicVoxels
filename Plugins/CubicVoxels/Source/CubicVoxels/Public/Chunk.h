@@ -39,6 +39,9 @@ public:
 
 	UPROPERTY()
 	class UDataTable* VoxelCharacteristicsData;
+
+	UFUNCTION(BlueprintCallable)
+	void ShowFaceGenerationStatus();
 	
 protected:
 	// Called when the game starts or when spawned
@@ -53,8 +56,10 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	bool IsInsideGeometryLoaded;
+	bool IsSideGeometryLoaded[6];
 	
-	TSharedPtr<FChunkData> BlocksData;
+	TSharedPtr<FChunkData> BlocksDataPtr;
 	
 	UPROPERTY()
 	TObjectPtr<UProceduralMeshComponent> Mesh;

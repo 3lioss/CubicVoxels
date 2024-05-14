@@ -68,13 +68,11 @@ void AVoxelWorld::IterateChunkCreationNearPlayers( )
 				//Logic for generating the chunks in proximity to the player
 				for (auto& Chunk : ViewLayers[i])
 				{
-					CreateChunkAt(Chunk + LoadingOrigin, CurrentPlayerThreadPair.Value.ChunkThreadedWorkOrdersQueuePtr);
+					CreateChunkAt(Chunk + LoadingOrigin, CurrentPlayerThreadPair.Value.ChunkGenerationOrdersQueuePtr);
 				}
 			}
 		}
 	}
-
-	
 	
 }
 
@@ -96,81 +94,91 @@ void AVoxelWorld::IterateGeneratedChunkLoadingAndSidesGeneration()
 	for (int32 Index = 0; Index < GeneratedChunksToLoadByDistanceToNearestPlayer.Num(); Index++)
 	{
 		const TTuple<FIntVector, TSharedPtr<FChunkData>> DataToLoad = GeneratedChunksToLoadByDistanceToNearestPlayer[Index];
-		if ( !( DataToLoad.Value->CompressedChunkData.Num() == 1 && DataToLoad.Value->CompressedChunkData[0].Voxel.VoxelType == "Air") )
+		// if ( !( DataToLoad.Value->CompressedChunkData.Num() == 1 && DataToLoad.Value->CompressedChunkData[0].Voxel.VoxelType == "Air"))
+		// {
+		
+		//Spawn the chunk actor
+		const TObjectPtr<AChunk> RecentlyGeneratedChunk = GetWorld()->SpawnActor<AChunk>();
+
+		RecentlyGeneratedChunk->OwningWorld = this;
+		RecentlyGeneratedChunk->VoxelCharacteristicsData = VoxelPhysicalCharacteristicsTable;
+		RecentlyGeneratedChunk->Location = DataToLoad.Key;
+		RecentlyGeneratedChunk->SetActorLocationAndRotation(this->GetActorRotation().RotateVector( this->GetActorLocation() + this->GetActorScale().X*ChunkSize*DefaultVoxelSize*FVector(DataToLoad.Key) ), this->GetActorRotation() );
+		RecentlyGeneratedChunk->SetActorScale3D(this->GetActorScale());
+		RecentlyGeneratedChunk->LoadBlocks(DataToLoad.Value);
+		RecentlyGeneratedChunk->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
+			
+		ChunkStates.Add(DataToLoad.Key, EChunkState::Loaded);
+		ChunkActorsMap.Add(MakeTuple(DataToLoad.Key, RecentlyGeneratedChunk));          
+
+		//If any neighbouring chunk is loaded, compute asynchronously the chunk's corresponding side mesh data
+		const FIntVector Directions[6] = {
+			FIntVector(1,0,0),
+			FIntVector(0,1,0),
+			FIntVector(-1,0,0),
+			FIntVector(0,-1,0),
+			FIntVector(0,0,1),
+			FIntVector(0,0,-1)							
+		};
+
+		const int32 OppositeDirections[6] = {
+			2,
+			3,
+			0,
+			1,
+			5,
+			4							
+		};
+			
+		//logic to start the generation of chunk sides if possible
+		for (int32 i = 0; i<6; i++)
 		{
-			//Spawn the chunk actor
-			const TObjectPtr<AChunk> RecentlyGeneratedChunk = GetWorld()->SpawnActor<AChunk>();
-
-			RecentlyGeneratedChunk->OwningWorld = this;
-			RecentlyGeneratedChunk->VoxelCharacteristicsData = VoxelPhysicalCharacteristicsTable;
-			RecentlyGeneratedChunk->Location = DataToLoad.Key;
-			RecentlyGeneratedChunk->SetActorLocationAndRotation(this->GetActorRotation().RotateVector( this->GetActorLocation() + this->GetActorScale().X*ChunkSize*DefaultVoxelSize*FVector(DataToLoad.Key) ), this->GetActorRotation() );
-			RecentlyGeneratedChunk->SetActorScale3D(this->GetActorScale());
-			RecentlyGeneratedChunk->LoadBlocks(DataToLoad.Value);
-			RecentlyGeneratedChunk->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
-			
-			ChunkStates.Add(DataToLoad.Key, EChunkState::Loaded);
-			ChunkActorsMap.Add(MakeTuple(DataToLoad.Key, RecentlyGeneratedChunk));          
-
-			//If any neighbouring chunk is loaded, compute asynchronously the chunk's corresponding side mesh data
-			const FIntVector Directions[6] = {
-				FIntVector(1,0,0),
-				FIntVector(0,1,0),
-				FIntVector(-1,0,0),
-				FIntVector(0,-1,0),
-				FIntVector(0,0,1),
-				FIntVector(0,0,-1)							
-			};
-
-			const int32 OppositeDirections[6] = {
-				2,
-				3,
-				0,
-				1,
-				5,
-				4							
-			};
-			
-			//logic to start the generation of chunk sides if possible
-			for (int32 i = 0; i<6; i++)
+			const auto StatePtr = ChunkStates.Find(DataToLoad.Key + Directions[i]);
+			if (StatePtr && *StatePtr == EChunkState::Loaded)
 			{
-				const auto StatePtr = ChunkStates.Find(DataToLoad.Key + Directions[i]);
-				if (StatePtr && *StatePtr == EChunkState::Loaded)
-				{
-					const auto ActorPtr = ChunkActorsMap.Find(DataToLoad.Key + Directions[i]);
-					if ( ActorPtr && IsValid(*ActorPtr))
-					{
-						const auto NearestPlayer = NearestPlayerToChunk(DataToLoad.Key);
-						const auto NearestPlayerData = ManagedPlayerDataMap.Find(NearestPlayer);
-						if (NearestPlayerData)
-						{
-							UE_LOG(LogTemp, Display, TEXT("Put order in queue for chunk sides at %d, %d, %d"), DataToLoad.Key.X,  DataToLoad.Key.Y,  DataToLoad.Key.Z);
-	
-							const auto PlayerWorkOrdersQueuePtr = NearestPlayerData->ChunkThreadedWorkOrdersQueuePtr;
-							
-							auto ChunkSidesGenerationOrder_1 = FChunkThreadedWorkOrderBase();
-							ChunkSidesGenerationOrder_1.ChunkLocation = DataToLoad.Key;
-							ChunkSidesGenerationOrder_1.DirectionIndex = i;
-							ChunkSidesGenerationOrder_1.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
-							ChunkSidesGenerationOrder_1.TargetChunkDataPtr = (RecentlyGeneratedChunk->BlocksData);
-							ChunkSidesGenerationOrder_1.NeighboringChunkDataPtr = ((*ActorPtr)->BlocksData);
-							ChunkSidesGenerationOrder_1.OrderType = EChunkThreadedWorkOrderType::GeneratingExistingChunksSides;
-							PlayerWorkOrdersQueuePtr->Enqueue(ChunkSidesGenerationOrder_1);
-
-							auto ChunkSidesGenerationOrder_2 = FChunkThreadedWorkOrderBase();
-							ChunkSidesGenerationOrder_2.ChunkLocation = DataToLoad.Key + Directions[i];
-							ChunkSidesGenerationOrder_2.DirectionIndex = OppositeDirections[i];
-							ChunkSidesGenerationOrder_2.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
-							ChunkSidesGenerationOrder_2.TargetChunkDataPtr = ((*ActorPtr)->BlocksData);
-							ChunkSidesGenerationOrder_2.NeighboringChunkDataPtr = (RecentlyGeneratedChunk->BlocksData);
-							ChunkSidesGenerationOrder_2.OrderType = EChunkThreadedWorkOrderType::GeneratingExistingChunksSides;
-							PlayerWorkOrdersQueuePtr->Enqueue(ChunkSidesGenerationOrder_1);
-						}
-						
-					}
-				}
+				const auto ActorPtr = ChunkActorsMap.Find(DataToLoad.Key + Directions[i]);
+				TSharedPtr<FChunkData> NeighborChunkDataPtr;
 				
+				if ( ActorPtr && IsValid(*ActorPtr))
+				{
+					NeighborChunkDataPtr = (*ActorPtr)->BlocksDataPtr;
+				}
+				else
+				{
+					NeighborChunkDataPtr = nullptr;
+					UE_LOG(LogTemp, Error, TEXT("Some chunk was marked as loaded but had no corresponding actor"))
+				}
+					
+				const auto NearestPlayer = NearestPlayerToChunk(DataToLoad.Key);
+				const auto NearestPlayerData = ManagedPlayerDataMap.Find(NearestPlayer);
+				if (NearestPlayerData)
+				{
+	
+					const auto PlayerWorkOrdersQueuePtr = NearestPlayerData->ChunkSidesMeshingOrdersQueuePtr;
+							
+					auto ChunkSidesGenerationOrder_1 = FChunkThreadedWorkOrderBase();
+					ChunkSidesGenerationOrder_1.ChunkLocation = DataToLoad.Key;
+					ChunkSidesGenerationOrder_1.DirectionIndex = i;
+					ChunkSidesGenerationOrder_1.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
+					ChunkSidesGenerationOrder_1.TargetChunkDataPtr = (RecentlyGeneratedChunk->BlocksDataPtr);
+					ChunkSidesGenerationOrder_1.NeighboringChunkDataPtr = NeighborChunkDataPtr;
+					ChunkSidesGenerationOrder_1.OrderType = EChunkThreadedWorkOrderType::GeneratingExistingChunksSides;
+					PlayerWorkOrdersQueuePtr->Enqueue(ChunkSidesGenerationOrder_1);
+
+					auto ChunkSidesGenerationOrder_2 = FChunkThreadedWorkOrderBase();
+					ChunkSidesGenerationOrder_2.ChunkLocation = DataToLoad.Key + Directions[i];
+					ChunkSidesGenerationOrder_2.DirectionIndex = OppositeDirections[i];
+					ChunkSidesGenerationOrder_2.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
+					ChunkSidesGenerationOrder_2.TargetChunkDataPtr = NeighborChunkDataPtr;
+					ChunkSidesGenerationOrder_2.NeighboringChunkDataPtr = (RecentlyGeneratedChunk->BlocksDataPtr);
+					ChunkSidesGenerationOrder_2.OrderType = EChunkThreadedWorkOrderType::GeneratingExistingChunksSides;
+					PlayerWorkOrdersQueuePtr->Enqueue(ChunkSidesGenerationOrder_2);
+				}
+						
+					
 			}
+				
+			//	}
 		}
 	}
 	GeneratedChunksToLoadByDistanceToNearestPlayer.Empty();
@@ -196,6 +204,14 @@ void AVoxelWorld::IterateChunkMeshing()
 				{
 					(*ChunkActor)->AddQuads(DataToLoad.Geometry);
 					(*ChunkActor)->RenderChunk(DefaultVoxelSize);
+					if (DataToLoad.DirectionIndex >= 0 && DataToLoad.DirectionIndex < 6)
+					{
+						(*ChunkActor)->IsSideGeometryLoaded[DataToLoad.DirectionIndex] = true;
+					}
+					else
+					{
+						(*ChunkActor)->IsInsideGeometryLoaded = true;
+					}
 					
 				}
 				else
@@ -415,7 +431,7 @@ void AVoxelWorld::SaveVoxelWorld()
 						{
 							if (IsValid(*Temp))
 							{
-								CurrentRegionData.Add(CurrentChunk, *((*Temp)->BlocksData) );
+								CurrentRegionData.Add(CurrentChunk, *((*Temp)->BlocksDataPtr) );
 							}
 						}
 					}
@@ -585,11 +601,18 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 
 void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 {
-	const auto CurrentPlayerRunnable = new FVoxelWorldGenerationRunnable;
-			
+	//By default, each player is managed by his own thread
+	//This can be changed easily if needed
+	const auto CurrentPlayerWorldGenerationRunnable = new FVoxelWorldGenerationRunnable;
+	
 	FVoxelWorldManagedPlayerData CurrentPlayerData;
-	CurrentPlayerData.ManagingThread = CurrentPlayerRunnable;
-	CurrentPlayerData.ChunkThreadedWorkOrdersQueuePtr = CurrentPlayerRunnable->GetGenerationOrdersQueue();
+	CurrentPlayerData.PlayerWorldGenerationThread = CurrentPlayerWorldGenerationRunnable;
+	CurrentPlayerData.ChunkGenerationOrdersQueuePtr = CurrentPlayerData.PlayerWorldGenerationThread->GetGenerationOrdersQueue();
+
+	//By default, the sides of chunks are generated by the same thread as the insides of chunks, which causes an initial lag when the first chunk faces generates
+	//If the game you're developing is solo, it might be acceptable to dedicate a separate thread for chunk sides generation to avoid this initial lag, that can also happen whenever a player is moving too fast
+	CurrentPlayerData.PlayerChunkSidesGenerationThread = CurrentPlayerWorldGenerationRunnable;
+	CurrentPlayerData.ChunkSidesMeshingOrdersQueuePtr = CurrentPlayerData.PlayerChunkSidesGenerationThread->GetGenerationOrdersQueue();
 
 	ManagedPlayerDataMap.Add(PlayerToAdd, CurrentPlayerData);
 }
@@ -624,65 +647,69 @@ FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
 	}
 }
 
+void AVoxelWorld::AddGeometryToChunk(FIntVector ChunkLocation, FChunkGeometry GeometryData)
+{
+}
+
 
 void AVoxelWorld::CreateChunkAt(FIntVector ChunkLocation,
-	TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* OrdersQueuePtr)
+                                TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* OrdersQueuePtr)
 {
 	if (!ChunkStates.Contains( ChunkLocation ))
-					{
+	{
 				
-						ChunkStates.Add(ChunkLocation, EChunkState::Loading);
-						const auto RegionSavedData = GetRegionSavedData(GetRegionOfChunk(ChunkLocation) );
-						if (RegionSavedData)
-						{
-							const auto ChunkSavedData = RegionSavedData->Find(ChunkLocation);
-							if (ChunkSavedData)
-							{
-								const TSharedPtr<FChunkData> ChunkVoxelDataPtr(ChunkSavedData);
-								auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
+		ChunkStates.Add(ChunkLocation, EChunkState::Loading);
+		const auto RegionSavedData = GetRegionSavedData(GetRegionOfChunk(ChunkLocation) );
+		if (RegionSavedData)
+		{
+			const auto ChunkSavedData = RegionSavedData->Find(ChunkLocation);
+			if (ChunkSavedData)
+			{
+				const TSharedPtr<FChunkData> ChunkVoxelDataPtr(ChunkSavedData);
+				auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
 							
-								ChunkGenerationOrder.TargetChunkDataPtr = ChunkVoxelDataPtr;
-								ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
-								ChunkGenerationOrder.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
-								ChunkGenerationOrder.ChunkLocation = ChunkLocation;
+				ChunkGenerationOrder.TargetChunkDataPtr = ChunkVoxelDataPtr;
+				ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
+				ChunkGenerationOrder.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
+				ChunkGenerationOrder.ChunkLocation = ChunkLocation;
 								
-								if (ChunkVoxelDataPtr->IsAdditive)
-								{
-									ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GeneratingAndMeshingWithAdditiveData;
-									ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
-								}
-								else
-								{
-									ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::MeshingFromData;
-								}
+				if (ChunkVoxelDataPtr->IsAdditive)
+				{
+					ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GeneratingAndMeshingWithAdditiveData;
+					ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
+				}
+				else
+				{
+					ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::MeshingFromData;
+				}
 							
-								OrdersQueuePtr->Enqueue(ChunkGenerationOrder);
+				OrdersQueuePtr->Enqueue(ChunkGenerationOrder);
 
-							}
-							else
-							{
-								auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
+			}
+			else
+			{
+				auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
 		
-								ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
-								ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
-								ChunkGenerationOrder.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
-								ChunkGenerationOrder.ChunkLocation = ChunkLocation;
-								ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GenerationAndMeshing;
-								OrdersQueuePtr->Enqueue(ChunkGenerationOrder);
-							}
-						}
-						else
-						{
-							auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
+				ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
+				ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
+				ChunkGenerationOrder.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
+				ChunkGenerationOrder.ChunkLocation = ChunkLocation;
+				ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GenerationAndMeshing;
+				OrdersQueuePtr->Enqueue(ChunkGenerationOrder);
+			}
+		}
+		else
+		{
+			auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
 					
-							ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
-							ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
-							ChunkGenerationOrder.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
-							ChunkGenerationOrder.ChunkLocation = ChunkLocation;
-							ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GenerationAndMeshing;
-							OrdersQueuePtr->Enqueue(ChunkGenerationOrder);
-						}
-					}
+			ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
+			ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
+			ChunkGenerationOrder.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
+			ChunkGenerationOrder.ChunkLocation = ChunkLocation;
+			ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GenerationAndMeshing;
+			OrdersQueuePtr->Enqueue(ChunkGenerationOrder);
+		}
+	}
 }
 
 FIntVector AVoxelWorld::GetRegionOfChunk(FIntVector ChunkCoordinates)
@@ -702,7 +729,7 @@ void AVoxelWorld::UpdatePlayerPositionsOnThreads()
 	{
 		FVector PlayerPosition = CurrentPlayerThreadPair.Key->GetPawn()->GetActorLocation();
 		const auto LoadingOrigin = FloorVector(this->GetActorRotation().GetInverse().RotateVector((PlayerPosition - this->GetActorLocation())/(ChunkSize*DefaultVoxelSize*this->GetActorScale().X)));
-		CurrentPlayerThreadPair.Value.ManagingThread->PlayerRelativeLocation = LoadingOrigin;
+		CurrentPlayerThreadPair.Value.PlayerWorldGenerationThread->PlayerRelativeLocation = LoadingOrigin;
 	}
 	PlayerPositionsUpdateOnThreadsMutex.Unlock();
 
@@ -773,9 +800,9 @@ void AVoxelWorld::BeginDestroy()
 	Super::BeginDestroy();
 
 	for (const auto CurrentPair : ManagedPlayerDataMap )
-		if (CurrentPair.Value.ManagingThread)
+		if (CurrentPair.Value.PlayerWorldGenerationThread)
 		{
-			CurrentPair.Value.ManagingThread->StartShutdown();
+			CurrentPair.Value.PlayerWorldGenerationThread->StartShutdown();
 		}
 }
 

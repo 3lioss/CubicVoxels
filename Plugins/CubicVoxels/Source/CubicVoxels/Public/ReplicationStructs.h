@@ -5,6 +5,9 @@
 
 struct FVoxelWorldManagedPlayerData
 {
-	FVoxelWorldGenerationRunnable* ManagingThread;
-	TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* ChunkThreadedWorkOrdersQueuePtr;
+	FVoxelWorldGenerationRunnable* PlayerWorldGenerationThread;
+	TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* ChunkGenerationOrdersQueuePtr;
+	
+	FVoxelWorldGenerationRunnable* PlayerChunkSidesGenerationThread;
+	TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* ChunkSidesMeshingOrdersQueuePtr;
 };

@@ -94,6 +94,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 	auto GeneratedGeometry = FChunkGeometry();
 	GeneratedGeometry.ChunkLocation = Coordinates;
 	GeneratedGeometry.Geometry = QuadsData;
+	GeneratedGeometry.DirectionIndex = -1;
 	ChunkGeometryLoadingQueuePtr->Enqueue(GeneratedGeometry);
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, ChunkDataPtr));
 }
@@ -164,6 +165,7 @@ static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQ
 	auto GeneratedGeometry = FChunkGeometry();
 	GeneratedGeometry.ChunkLocation = Coordinates;
 	GeneratedGeometry.Geometry = QuadsData;
+	GeneratedGeometry.DirectionIndex = -1;
 	ChunkGeometryLoadingQueuePtr->Enqueue(GeneratedGeometry);
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, ChunkDataPtr));
 }
@@ -213,6 +215,7 @@ static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTup
 	auto GeneratedGeometry = FChunkGeometry();
 	GeneratedGeometry.ChunkLocation = Coordinates;
 	GeneratedGeometry.Geometry = QuadsData;
+	GeneratedGeometry.DirectionIndex = -1;
 	ChunkGeometryLoadingQueuePtr->Enqueue(GeneratedGeometry);
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, CompressedChunkBlocksPtr));
 }
@@ -300,6 +303,7 @@ static void ComputeChunkSideFacesFromData(TSharedPtr<FChunkData> DataOfChunkToAd
 	auto GeneratedGeometry = FChunkGeometry();
 	GeneratedGeometry.ChunkLocation = ChunkToAddFacesToCoordinates;
 	GeneratedGeometry.Geometry = SideGeometryData;
+	GeneratedGeometry.DirectionIndex = DirectionIndex;
 	ChunkGeometryLoadingQueuePtr->Enqueue(GeneratedGeometry);
 }
 
