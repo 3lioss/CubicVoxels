@@ -81,14 +81,13 @@ private:
 	TMap<FIntVector, TMap<FIntVector, FChunkData>> LoadedRegions; 
 
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc> GeneratedChunksToLoadInGame;
-	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc> ChunkQuadsToLoad;
+	TQueue< FChunkGeometry, EQueueMode::Mpsc> ChunkQuadsToLoad;
 
 	FIntVector GetRegionOfChunk(FIntVector ChunkCoordinates);
 
 	void RegisterChunkForSaving(FIntVector3 ChunkLocation);
 
 	FCriticalSection PlayerPositionsUpdateOnThreadsMutex;
-
 
 
 protected:
@@ -99,7 +98,7 @@ protected:
 	TArray<TSet<FIntVector>> ViewLayers;
 	TArray<TTuple<FIntVector, TSharedPtr<FChunkData>>> OrderedGeneratedChunksToLoadInGame;
 	TMap<FIntVector, uint32> NumbersOfPlayerOutsideRangeOfChunkMap;
-	TQueue<TTuple<FIntVector, TMap<FIntVector4, FVoxel>>> ChunkQuadsToBeLoadedLater;
+	TQueue<FChunkGeometry> ChunkGeometryToBeLoadedLater;
 	
 	int32 OneNorm(FIntVector Vector) const;
 	

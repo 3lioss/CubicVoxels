@@ -187,38 +187,38 @@ void AVoxelWorld::IterateChunkMeshing()
 	while(!ChunkQuadsToLoad.IsEmpty())
 	{
 		
-		TTuple<FIntVector, TMap<FIntVector4, FVoxel>> DataToLoad;
+		FChunkGeometry DataToLoad;
 		ChunkQuadsToLoad.Dequeue(DataToLoad);
-		const auto LoadingState = ChunkStates.Find(DataToLoad.Get<0>());
+		const auto LoadingState = ChunkStates.Find(DataToLoad.ChunkLocation);
 		if (LoadingState)
 		{
 			if (*LoadingState == EChunkState::Loaded)
 			{
 				
-				const auto ChunkActor = ChunkActorsMap.Find(DataToLoad.Get<0>());
+				const auto ChunkActor = ChunkActorsMap.Find(DataToLoad.ChunkLocation);
 				if (ChunkActor && IsValid(*ChunkActor))
 				{
-					(*ChunkActor)->AddQuads(DataToLoad.Get<1>());
+					(*ChunkActor)->AddQuads(DataToLoad.Geometry);
 					(*ChunkActor)->RenderChunk(DefaultVoxelSize);
 					
 				}
 				else
 				{
-					ChunkQuadsToBeLoadedLater.Enqueue(DataToLoad);
+					ChunkGeometryToBeLoadedLater.Enqueue(DataToLoad);
 				}
 				//If later chunks are to be forbidden from loading based on culling methods, there ought to be added logic for creating a ChunkActor just to add its sides
 			}
 			if (*LoadingState == EChunkState::Loading)
 			{
-				ChunkQuadsToBeLoadedLater.Enqueue(DataToLoad);
+				ChunkGeometryToBeLoadedLater.Enqueue(DataToLoad);
 			}
 		}
 	}
 
-	while(!ChunkQuadsToBeLoadedLater.IsEmpty())
+	while(!ChunkGeometryToBeLoadedLater.IsEmpty())
 	{
-		TTuple<FIntVector, TMap<FIntVector4, FVoxel>> DataToLoad;
-		ChunkQuadsToBeLoadedLater.Dequeue(DataToLoad);
+		FChunkGeometry DataToLoad;
+		ChunkGeometryToBeLoadedLater.Dequeue(DataToLoad);
 		ChunkQuadsToLoad.Enqueue(DataToLoad);
 	}
 }

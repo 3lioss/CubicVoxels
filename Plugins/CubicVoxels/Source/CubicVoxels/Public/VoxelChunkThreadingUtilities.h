@@ -23,7 +23,7 @@ const int BlockTriangleData[24] = {
 	3,2,7,6  // Down
 };
 	
-static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad,  FVoxel (*GenerationFunction) (FVector))
+static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< FChunkGeometry, EQueueMode::Mpsc>* ChunkGeometryLoadingQueuePtr,  FVoxel (*GenerationFunction) (FVector))
 {
 	/*Function to generate procedurally a chunk and its mesh data*/
 	
@@ -91,11 +91,14 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 	// TimeElapsedInMs = (FDateTime::UtcNow() - StartTime).GetTotalMilliseconds(); //to remove later
 	// UE_LOG(LogTemp, Warning, TEXT("Time taken to mesh: %f"), TimeElapsedInMs);
 
-	ChunkQuadsToLoad->Enqueue(MakeTuple(Coordinates, QuadsData));
+	auto GeneratedGeometry = FChunkGeometry();
+	GeneratedGeometry.ChunkLocation = Coordinates;
+	GeneratedGeometry.Geometry = QuadsData;
+	ChunkGeometryLoadingQueuePtr->Enqueue(GeneratedGeometry);
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, ChunkDataPtr));
 }
 
-static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad,  FVoxel (*GenerationFunction) (FVector),  TSharedPtr<FChunkData> ChunkDataPtr)
+static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< FChunkGeometry, EQueueMode::Mpsc>* ChunkGeometryLoadingQueuePtr,  FVoxel (*GenerationFunction) (FVector),  TSharedPtr<FChunkData> ChunkDataPtr)
 {
 	/*Generate a chunk defined additively based on the procedural generator, then generate its mesh data*/
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, TEXT("Starting to generate from additive data"));	
@@ -158,11 +161,14 @@ static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQ
 	}
 
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, TEXT("Finished generating from additive data"));	
-	ChunkQuadsToLoad->Enqueue(MakeTuple(Coordinates, QuadsData));
+	auto GeneratedGeometry = FChunkGeometry();
+	GeneratedGeometry.ChunkLocation = Coordinates;
+	GeneratedGeometry.Geometry = QuadsData;
+	ChunkGeometryLoadingQueuePtr->Enqueue(GeneratedGeometry);
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, ChunkDataPtr));
 }
 
-static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad,  TSharedPtr<FChunkData> CompressedChunkBlocksPtr)
+static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< FChunkGeometry, EQueueMode::Mpsc>* ChunkGeometryLoadingQueuePtr,  TSharedPtr<FChunkData> CompressedChunkBlocksPtr)
 {
 	/*Generate the mesh data of a chunk whose voxel data is already accessible*/
 		
@@ -204,7 +210,10 @@ static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTup
 		}
 	}
 
-	ChunkQuadsToLoad->Enqueue(MakeTuple(Coordinates, QuadsData));
+	auto GeneratedGeometry = FChunkGeometry();
+	GeneratedGeometry.ChunkLocation = Coordinates;
+	GeneratedGeometry.Geometry = QuadsData;
+	ChunkGeometryLoadingQueuePtr->Enqueue(GeneratedGeometry);
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, CompressedChunkBlocksPtr));
 }
 
@@ -227,7 +236,7 @@ static FIntVector NormaliseCyclicalCoordinates(FIntVector Coordinates, int32 Nor
 	return FIntVector( Modulo(Coordinates.X,  Norm), Modulo(Coordinates.Y , Norm), Modulo(Coordinates.Z , Norm));
 }
 
-static void ComputeChunkSideFacesFromData(TSharedPtr<FChunkData> DataOfChunkToAddFacesTo, TSharedPtr<FChunkData> NeighbourChunkBlocks, int32 DirectionIndex, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* OuputChunkQuadsQueue, FIntVector ChunkToAddFacesToCoordinates)
+static void ComputeChunkSideFacesFromData(TSharedPtr<FChunkData> DataOfChunkToAddFacesTo, TSharedPtr<FChunkData> NeighbourChunkBlocks, int32 DirectionIndex, TQueue< FChunkGeometry, EQueueMode::Mpsc>* ChunkGeometryLoadingQueuePtr, FIntVector ChunkToAddFacesToCoordinates)
 {
 	/*Function to compute the faces of a chunks' sides*/
 
@@ -272,7 +281,7 @@ static void ComputeChunkSideFacesFromData(TSharedPtr<FChunkData> DataOfChunkToAd
 
 	//Generate the chunk's side's quads data
 
-	TMap<FIntVector4, FVoxel> SideQuadsData;
+	TMap<FIntVector4, FVoxel> SideGeometryData;
 		
 	for (int x = 0; x < ChunkSize; ++x)
 	{
@@ -282,11 +291,15 @@ static void ComputeChunkSideFacesFromData(TSharedPtr<FChunkData> DataOfChunkToAd
 			const auto CurrentNeighbourLocation = NormaliseCyclicalCoordinates(CurrentBlockLocation + Directions[DirectionIndex], ChunkSize) ; //There is probably a problem there as the compression-decompression and the geometry generation logic seem to be working
 			if (DataOfChunkToAddFacesTo->GetVoxelAt(CurrentBlockLocation).VoxelType != "Air" && NeighbourChunkBlocks->GetVoxelAt(CurrentNeighbourLocation).IsTransparent == true && (NeighbourChunkBlocks->GetVoxelAt(CurrentNeighbourLocation) != DataOfChunkToAddFacesTo->GetVoxelAt(CurrentBlockLocation) )) //TODO: modify so that no reference is made to air 
 			{
-				SideQuadsData.Add(FIntVector4(CurrentBlockLocation.X,CurrentBlockLocation.Y, CurrentBlockLocation.Z , DirectionIndex), DataOfChunkToAddFacesTo->GetVoxelAt(CurrentBlockLocation) );
+				SideGeometryData.Add(FIntVector4(CurrentBlockLocation.X,CurrentBlockLocation.Y, CurrentBlockLocation.Z , DirectionIndex), DataOfChunkToAddFacesTo->GetVoxelAt(CurrentBlockLocation) );
 			}
 		}
 	}
 	
-	OuputChunkQuadsQueue->Enqueue(MakeTuple(ChunkToAddFacesToCoordinates,SideQuadsData));
+	
+	auto GeneratedGeometry = FChunkGeometry();
+	GeneratedGeometry.ChunkLocation = ChunkToAddFacesToCoordinates;
+	GeneratedGeometry.Geometry = SideGeometryData;
+	ChunkGeometryLoadingQueuePtr->Enqueue(GeneratedGeometry);
 }
 

@@ -92,6 +92,13 @@ struct FVoxelStack
 	}
 };
 
+struct FChunkGeometry
+{
+	FIntVector ChunkLocation;
+	
+	TMap<FIntVector4, FVoxel> Geometry;
+};
+
 USTRUCT()
 struct FChunkData
 {
