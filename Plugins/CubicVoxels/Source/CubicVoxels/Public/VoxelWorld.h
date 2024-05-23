@@ -59,9 +59,13 @@ public:
 
 	//Function to add a player to be managed by the VoxelWorld
 	UFUNCTION(BlueprintCallable)
-	void AddManagedPlayer(APlayerController* PlayerToAdd);
+	void AddManagedPlayer(APlayerController* PlayerToAdd, bool IsOnServer);
 	
 private:
+	//Only used on the server to set a fixed number of threads to handle players
+	int32 NumberOfWorldGenerationThreads;
+	int32 CurrentGenerationThreadIndex;
+	TArray<FVoxelWorldGenerationRunnable*> WorldGenerationThreads;
 
 	//Main functions called on actor ticking
 	void UpdatePlayerPositionsOnThreads();
