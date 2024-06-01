@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "FVoxelWorldGenerationRunnable.h"
+#include "ThreadedWorldGeneration/FVoxelWorldGenerationRunnable.h"
 #include "Containers/Queue.h" 
 
 

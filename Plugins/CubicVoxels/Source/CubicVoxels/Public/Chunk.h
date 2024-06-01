@@ -29,6 +29,7 @@ public:
 	//Functions to modify the chunk
 	void DestroyBlockAt(FVector BlockWorldLocation);
 	void SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType);
+	FVoxel GetBlockAt(FVector BlockWorldLocation);
 
 	//Values set by the VoxelWorld
 	UPROPERTY(BlueprintReadOnly)

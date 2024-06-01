@@ -6,7 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "VoxelStructs.h"
 #include "ReplicationStructs.h"
-#include "FVoxelWorldGenerationRunnable.h"
+#include "ThreadedWorldGeneration/FVoxelWorldGenerationRunnable.h"
+#include "Serialization/VoxelWorldGlobalDataSaveGame.h"
 #include "VoxelWorld.generated.h"
 
 class AChunk;
@@ -19,7 +20,11 @@ class AVoxelWorld : public AActor
 {
 	GENERATED_BODY()
 	
-public:	
+public:
+	//TODO: remove this
+	UFUNCTION(BlueprintCallable)
+	void TestWorldSerialization();
+	
 	// Sets default values for this actor's properties
 	AVoxelWorld();
 
@@ -40,6 +45,12 @@ public:
 	//Each managed player has its own assigned thread to create the world around him
 	//All the data needed to manage a player is contained in a struct linked to the player by the following map
 	TMap<TObjectPtr<APlayerController>, FVoxelWorldManagedPlayerData> ManagedPlayerDataMap;
+
+	//Name of the folder where the world saved data is saved
+	UPROPERTY(EditAnywhere)
+	FString WorldName;
+
+	TArray<uint8> GetSerializedWorldData();
 	
 	//Functions to access chunk data
 	bool IsChunkLoaded(FIntVector ChunkLocation);
@@ -57,9 +68,13 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetBlockAt(FVector BlockWorldLocation, FVoxel Block);
 
+	UFUNCTION(BlueprintCallable)
+	FVoxel GetBlockAt(FVector BlockWorldLocation);
+
 	//Function to add a player to be managed by the VoxelWorld
 	UFUNCTION(BlueprintCallable)
 	void AddManagedPlayer(APlayerController* PlayerToAdd, bool IsOnServer);
+	
 	
 private:
 	//Only used on the server to set a fixed number of threads to handle players
@@ -95,8 +110,8 @@ private:
 
 	int32 DistanceToNearestPlayer(FIntVector ChunkLocation);
 	TObjectPtr<APlayerController> NearestPlayerToChunk(FIntVector ChunkLocation);
-	
 
+	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -112,6 +127,11 @@ protected:
 	static FVoxel DefaultGenerateBlockAt(FVector Position);
 
 	void AddGeometryToChunk(FIntVector ChunkLocation, FChunkGeometry GeometryData);
+
+	//SaveGame that stores all the global data of the VoxelWorld actor
+	//That is the data which is not owned by a particular region
+	UPROPERTY()
+	UVoxelWorldGlobalDataSaveGame* WorldSavedInfo;
 	
 
 public:	

@@ -1,5 +1,5 @@
 ﻿// .cpp
-#include "FVoxelWorldGenerationRunnable.h"
+#include "ThreadedWorldGeneration/FVoxelWorldGenerationRunnable.h"
 
 FVoxelWorldGenerationRunnable::FVoxelWorldGenerationRunnable()
 {

@@ -441,3 +441,22 @@ static FIntVector FloorVector(FVector Vector)
 	/*Function that floors a FVector to an FIntVector in the mathematically natural way*/
 	return FIntVector(FMath::Floor(Vector.X), FMath::Floor(Vector.Y), FMath::Floor(Vector.Z) );
 }
+
+USTRUCT()
+struct FRegionDataSerializationWrapper
+{
+	GENERATED_BODY()
+
+	UPROPERTY(SaveGame)
+	TMap<FIntVector, FChunkData> RegionData;
+
+	FRegionDataSerializationWrapper()
+	{
+		RegionData = TMap<FIntVector, FChunkData>();
+	}
+
+	FRegionDataSerializationWrapper(const TMap<FIntVector, FChunkData>& InitialRegionData)
+	{
+		RegionData = InitialRegionData;
+	}
+};

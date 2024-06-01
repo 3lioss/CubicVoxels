@@ -4,7 +4,7 @@
 #include "ProceduralMeshComponent.h"
 #include "VoxelStructs.h"
 #include "Engine/DataTable.h"
-#include "VoxelChunkThreadingUtilities.h"
+#include "ThreadedWorldGeneration/VoxelChunkThreadingUtilities.h"
 #include "VoxelWorld.h"
 
 // Sets default values
@@ -362,5 +362,16 @@ void AChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 	BlocksDataPtr->SetVoxel(BlockLocation, BlockType);
 	
 	RenderChunk(DefaultVoxelSize);
+	
+}
+
+FVoxel AChunk::GetBlockAt(FVector BlockWorldLocation)
+{
+	
+	/*Sets the block at the given world location*/
+	auto RelativeLocation = (BlockWorldLocation - GetActorLocation())/(DefaultVoxelSize);
+	const auto BlockLocation = FIntVector(FMath::Floor(RelativeLocation.X), FMath::Floor(RelativeLocation.Y), FMath::Floor(RelativeLocation.Z));
+
+	return BlocksDataPtr->GetVoxelAt(BlockLocation);
 	
 }

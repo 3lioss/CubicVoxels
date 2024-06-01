@@ -5,12 +5,12 @@
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
 #include "VoxelStructs.h"
-#include "VoxelWorldDataSaveGame.generated.h"
+#include "RegionDataSaveGame.generated.h"
 
 
 
 UCLASS()
-class CUBICVOXELS_API UVoxelWorldDataSaveGame : public USaveGame
+class CUBICVOXELS_API URegionDataSaveGame : public USaveGame
 {
 	GENERATED_BODY()
 

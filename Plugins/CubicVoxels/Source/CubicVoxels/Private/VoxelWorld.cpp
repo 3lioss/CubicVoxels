@@ -3,10 +3,18 @@
 
 #include "VoxelWorld.h"
 #include "Enums.h"
-#include "FVoxelWorldGenerationRunnable.h"
-#include "VoxelWorldDataSaveGame.h"
+#include "ThreadedWorldGeneration/FVoxelWorldGenerationRunnable.h"
+#include "Serialization/RegionDataSaveGame.h"
 #include "Kismet/GameplayStatics.h"
 #include "Chunk.h"
+#include "Serialization/VoxelWorldGlobalDataSaveGame.h"
+#include "Serialization/VoxelWorldNetworkSerializationSaveGame.h"
+
+void AVoxelWorld::TestWorldSerialization()
+{
+	auto a = GetSerializedWorldData();
+	UE_LOG(LogTemp, Warning, TEXT("Hello %d"), a.Num())
+}
 
 // Sets default values
 AVoxelWorld::AVoxelWorld()
@@ -60,6 +68,8 @@ AVoxelWorld::AVoxelWorld()
 		}
 		CurrentGenerationThreadIndex = 0;
 	}
+
+	WorldName = "MyWorld";
 	
 }
 
@@ -284,6 +294,38 @@ void AVoxelWorld::IterateChunkUnloading()
 	
 }
 
+TArray<uint8> AVoxelWorld::GetSerializedWorldData()
+{
+	auto Serializer = Cast<UVoxelWorldNetworkSerializationSaveGame>(UGameplayStatics::CreateSaveGameObject(UVoxelWorldNetworkSerializationSaveGame::StaticClass()));
+	Serializer->WorldName = WorldName;
+
+	auto WorldVoxelData = TMap<FIntVector, FRegionDataSerializationWrapper>();
+	auto SavedRegions = WorldSavedInfo->SavedRegions;
+
+	for (const auto& CurrentRegion : SavedRegions)
+	{
+		const auto RegionDataPtr = GetRegionSavedData(CurrentRegion);
+		if (RegionDataPtr)
+		{
+			auto WrappedRegionData = FRegionDataSerializationWrapper( *RegionDataPtr);
+			WorldVoxelData.Add(CurrentRegion, WrappedRegionData);
+		}
+	}
+
+	Serializer->WorldVoxelData = WorldVoxelData;
+	
+	TArray<uint8> SerializedData = TArray<uint8>();
+	if (UGameplayStatics::SaveGameToMemory(Serializer, SerializedData))
+	{
+		return SerializedData;
+	}
+	else
+	{
+		return TArray<uint8>();	
+	}
+	
+}
+
 bool AVoxelWorld::IsChunkLoaded(FIntVector ChunkLocation)
 {
 	/*Tests if a chunk is marked as loaded. A true return value doesn't necessarily mean its chunk data is finished loading*/
@@ -306,10 +348,9 @@ TMap<FIntVector, FChunkData>* AVoxelWorld::GetRegionSavedData(FIntVector ChunkRe
 	{
 		return LoadedRegionData;
 	}
-
 	else
 	{
-		FString RegionCoordinates = "";
+		FString RegionCoordinates = WorldName + "\\";
 		RegionCoordinates.AppendInt(ChunkRegionLocation.X);
 		RegionCoordinates.Append(",");
 		RegionCoordinates.AppendInt(ChunkRegionLocation.Y);
@@ -319,7 +360,7 @@ TMap<FIntVector, FChunkData>* AVoxelWorld::GetRegionSavedData(FIntVector ChunkRe
 
 		if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
 		{
-			auto Temp = Cast<UVoxelWorldDataSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
+			auto Temp = Cast<URegionDataSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
 			if (Temp)
 			{
 				LoadedRegions.Add(ChunkRegionLocation, (Temp->RegionData));
@@ -368,7 +409,7 @@ void AVoxelWorld::SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData
 
 	else
 	{
-		FString RegionCoordinates = "";
+		FString RegionCoordinates = WorldName + "\\";
 		RegionCoordinates.AppendInt(GetRegionOfChunk(ChunkLocation).X);
 		RegionCoordinates.Append(",");
 		RegionCoordinates.AppendInt(GetRegionOfChunk(ChunkLocation).Y);
@@ -378,7 +419,7 @@ void AVoxelWorld::SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData
 
 		if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
 		{
-			auto Temp = Cast<UVoxelWorldDataSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
+			auto Temp = Cast<URegionDataSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
 			if (Temp)
 			{
 				LoadedRegions.Add(GetRegionOfChunk(ChunkLocation), (Temp->RegionData));
@@ -401,6 +442,8 @@ void AVoxelWorld::SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData
 		}
 	}
 
+	
+
 	RegisterChunkForSaving(ChunkLocation);
 }
 
@@ -409,11 +452,14 @@ void AVoxelWorld::RegisterChunkForSaving(FIntVector3 ChunkLocation)
 	/*Mark a chunk as needing to be updated in the save file on the next save*/
 	ChunksToSave.Add(ChunkLocation);
 	RegionsToSave.Add(GetRegionOfChunk(ChunkLocation));
+	WorldSavedInfo->SavedRegions.Add(GetRegionOfChunk(ChunkLocation));
 }
 
 void AVoxelWorld::SaveVoxelWorld() 
 {
 	/*Overwrite the save data of every chunk that has been marked as needing to be saved with their current data in the game*/
+
+	UGameplayStatics::SaveGameToSlot(WorldSavedInfo, WorldName + "\\WorldSaveData", 0 );
 
 	//iterate over the regions to save 
 	for (auto& CurrentRegionToSave : RegionsToSave) 
@@ -452,11 +498,11 @@ void AVoxelWorld::SaveVoxelWorld()
 		}
 
 		//save the region at hand
-		auto SaveObject = Cast<UVoxelWorldDataSaveGame>(UGameplayStatics::CreateSaveGameObject(UVoxelWorldDataSaveGame::StaticClass()));
+		auto SaveObject = Cast<URegionDataSaveGame>(UGameplayStatics::CreateSaveGameObject(URegionDataSaveGame::StaticClass()));
 
 		SaveObject->RegionData = CurrentRegionData;
 	
-		FString ChunkCoordinates = "";
+		FString ChunkCoordinates = WorldName + "\\";
 		ChunkCoordinates.AppendInt(CurrentRegionToSave.X);
 		ChunkCoordinates.Append(",");
 		ChunkCoordinates.AppendInt(CurrentRegionToSave.Y);
@@ -610,6 +656,59 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 	RegisterChunkForSaving(AffectedChunkLocation);
 }
 
+FVoxel AVoxelWorld::GetBlockAt(FVector BlockWorldLocation)
+{
+	const auto AffectedChunkLocation = FloorVector((BlockWorldLocation - this->GetActorLocation())/(DefaultVoxelSize*ChunkSize*this->GetActorScale().X));
+	
+	if (IsChunkLoaded(AffectedChunkLocation))
+	{
+		const auto ChunkPtr = GetChunkAt(AffectedChunkLocation);
+		if (ChunkPtr)
+		{
+			
+			return ChunkPtr->GetBlockAt(BlockWorldLocation); 
+		}
+		else
+		{
+			auto Result = FVoxel();
+			Result.VoxelType = "Null";
+			return Result;
+		}
+		
+	}
+	else
+	{
+		const auto RegionDataPtr = GetRegionSavedData(GetRegionOfChunk(AffectedChunkLocation));
+
+		const auto BlockLocationInChunk = FloorVector((BlockWorldLocation-this->GetActorLocation())/DefaultVoxelSize) - AffectedChunkLocation*ChunkSize;
+		
+		if (RegionDataPtr)
+		{
+			
+			if (LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)].Contains(AffectedChunkLocation))
+			{
+				return LoadedRegions[GetRegionOfChunk(AffectedChunkLocation)][AffectedChunkLocation].GetVoxelAt(BlockLocationInChunk);
+			}
+			else
+			{
+
+				auto Result = FVoxel();
+				Result.VoxelType = "Null";
+				return Result;
+			}
+		}
+		else
+		{
+			
+			auto Result = FVoxel();
+			Result.VoxelType = "Null";
+			return Result;
+			
+		}
+	}
+
+}
+
 void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd, bool IsOnServer)
 {
 
@@ -639,7 +738,8 @@ void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd, bool IsOnServ
 		CurrentPlayerData.ChunkGenerationOrdersQueuePtr = CurrentPlayerData.PlayerWorldGenerationThread->GetGenerationOrdersQueue();
 
 		//Separating chunk insides and sides generation into different threads might get rid of some stutters
-		CurrentPlayerData.PlayerChunkSidesGenerationThread = CurrentPlayerWorldGenerationRunnable;
+		const auto CurrentPlayerChunkSidesGenerationRunnable = new FVoxelWorldGenerationRunnable;
+		CurrentPlayerData.PlayerChunkSidesGenerationThread = CurrentPlayerChunkSidesGenerationRunnable;
 		CurrentPlayerData.ChunkSidesMeshingOrdersQueuePtr = CurrentPlayerData.PlayerChunkSidesGenerationThread->GetGenerationOrdersQueue();
 
 		ManagedPlayerDataMap.Add(PlayerToAdd, CurrentPlayerData);
@@ -662,7 +762,7 @@ FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
 	}
 	else
 	{
-		if (Position.Z < -100)
+		if (Position.Z < -2500)
 		{
 			FVoxel Temp;
 			Temp.VoxelType = "Water";
@@ -811,6 +911,27 @@ void AVoxelWorld::BeginPlay()
 {
 	Super::BeginPlay();
 
+
+
+	//Creates the main world save file
+	 if (UGameplayStatics::DoesSaveGameExist(WorldName + "\\WorldSaveData", 0))
+	 {
+	 	auto Temp = Cast<UVoxelWorldGlobalDataSaveGame>(UGameplayStatics::LoadGameFromSlot(WorldName + "\\WorldSaveData", 0));
+	 	if (Temp)
+	 	{
+	 		WorldSavedInfo = Temp;
+	 	}
+	 	else
+	 	{
+	 		UE_LOG(LogTemp, Error, TEXT("A save file was found but it was not valid"))
+	 	}
+	 }
+	 else
+	 {
+		WorldSavedInfo = Cast<UVoxelWorldGlobalDataSaveGame>(UGameplayStatics::CreateSaveGameObject(UVoxelWorldGlobalDataSaveGame::StaticClass()));
+	}
+
+	//Registers the players who play in the voxel world
 	if (HasAuthority())
 	{
 		for (TPlayerControllerIterator<APlayerController>::ServerAll It(GetWorld()); It; ++It)
