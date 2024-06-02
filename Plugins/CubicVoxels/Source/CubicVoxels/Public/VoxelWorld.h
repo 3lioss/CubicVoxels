@@ -31,7 +31,10 @@ public:
 	AVoxelWorld();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool IsEnabled; //Should be false by default in multiplayer
+	bool IsEnabled; 
+
+	UPROPERTY(EditAnywhere)
+	bool IsInMultiplayerMode;
 
 	//Chunk loading distance parameters //TODO: Make it mutable at runtime
 	int32 ViewDistance;
@@ -44,7 +47,7 @@ public:
 	//Pointer to the function that generates the terrain procedurally
 	FVoxel (*WorldGenerationFunction) (FVector);
 
-	//The VoxelWorld may manage multiple players
+	//The VoxelWorld may manage multiple players in mutiplayer
 	//It will generate the world around each managed player
 	//On the client there will generally be only one managed player, on the server every player is generally managed
 	//Each managed player has its own assigned thread to create the world around him
@@ -81,10 +84,15 @@ public:
 
 	//Function to add a player to be managed by the VoxelWorld
 	UFUNCTION(BlueprintCallable)
-	void AddManagedPlayer(APlayerController* PlayerToAdd, bool IsOnServer = true);
+	void AddManagedPlayer(APlayerController* PlayerToAdd);
 	
 	
 private:
+	//Each player is assigned a unique Id to be identified by on other threads
+	//This restricts the risk of accessing a PlayerController outside the game thread
+	UPROPERTY()
+	TMap<APlayerController*, int32> PlayerIDs;
+	
 	//Only used on the server to set a fixed number of threads to handle players
 	int32 NumberOfWorldGenerationThreads;
 	int32 CurrentGenerationThreadIndex;
@@ -120,6 +128,8 @@ private:
 	TObjectPtr<APlayerController> NearestPlayerToChunk(FIntVector ChunkLocation);
 
 	FString GetRegionName(FIntVector RegionLocation);
+
+	void ServerThreadsSetup(int32 NumberOfThreads);
 
 	//Functions and variables used for world download from server
 	//TMap<TObjectPtr<APlayerController>, FVoxelStreamManager> PlayerWorldDownloadingStreamMap;

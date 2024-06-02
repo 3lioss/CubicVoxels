@@ -43,8 +43,13 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void ShowFaceGenerationStatus();
-	
+
+	UFUNCTION(Client, Reliable)
+	void AddSerializedGeometryOnClient(const TArray<uint8>& SerializedGeometry);
+		
 protected:
+	UStaticMeshComponent* Cube;
+	
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
@@ -52,6 +57,8 @@ protected:
 	TMap<FIntVector4, FVoxel> VoxelQuads;
 
 	static bool IsInsideChunk(FIntVector BlockLocation);
+
+	
 
 public:	
 	// Called every frame

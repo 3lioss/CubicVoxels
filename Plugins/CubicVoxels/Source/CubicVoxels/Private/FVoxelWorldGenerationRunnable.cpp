@@ -14,17 +14,18 @@ bool FVoxelWorldGenerationRunnable::Init() {
 uint32 FVoxelWorldGenerationRunnable::Run() {
 	while (!bShutdown) {
 		
-		//Empty the queue used to communicate with the game thread into an array that can be safely sorted
+		//Empty the queue used to communicate with the game thread into an array
+		//Sorted by distance to the players
 		FChunkThreadedWorkOrderBase CurrentOrder;
 		while (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder) )
 		{
 			OrderedChunkThreadedWorkOrders.Add(CurrentOrder);
 		}
-
-		//Sorting the generation orders by distance to the player and executing them
-		OrderedChunkThreadedWorkOrders.Sort([this](const FChunkThreadedWorkOrderBase& A, const FChunkThreadedWorkOrderBase& B)
+		
+		const TMap<int32, FIntVector> ManagedPlayersPositionsMapCopy = ManagedPlayersPositionsMap;
+		OrderedChunkThreadedWorkOrders.Sort([this, ManagedPlayersPositionsMapCopy](const FChunkThreadedWorkOrderBase& A, const FChunkThreadedWorkOrderBase& B)
 		{
-			return IsCloserToNearestPlayer(A,B);
+			return IsCloserToNearestPlayer(A,B, ManagedPlayersPositionsMapCopy);
 		});
 		
 		for (int32 i = 0; i < OrderedChunkThreadedWorkOrders.Num() ; i++)
@@ -69,13 +70,15 @@ void FVoxelWorldGenerationRunnable::StartShutdown()
 // }
 
 bool FVoxelWorldGenerationRunnable::IsCloserToNearestPlayer(FChunkThreadedWorkOrderBase A,
-	FChunkThreadedWorkOrderBase B)
+	FChunkThreadedWorkOrderBase B, const TMap<int32, FIntVector>& ManagedPlayersPositionsMapConstCopy)
 {
 	int32 MinSquareDistanceAToPlayer = -1;
 	int32 MinSquareDistanceBToPlayer = -1;
-	
-	for (auto& PlayerDataPair : ManagedPlayersPositionsMap)
+
+	const auto PlayerPositionsCopy = ManagedPlayersPositionsMap;
+	for (const auto& PlayerDataPair : PlayerPositionsCopy) //TODO: Add a set that stores all the managed players to avoid weird data race issue
 	{
+		
 		const auto DA = (PlayerDataPair.Value - A.ChunkLocation);
 		const int32 CurrentDistanceToA = DA.X*DA.X + DA.Y*DA.Y + DA.Z*DA.Z;
 		if (MinSquareDistanceAToPlayer == -1 || CurrentDistanceToA < MinSquareDistanceAToPlayer)

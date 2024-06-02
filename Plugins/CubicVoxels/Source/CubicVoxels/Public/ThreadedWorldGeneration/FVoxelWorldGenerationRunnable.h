@@ -23,14 +23,15 @@ public:
 	void StartShutdown();
 	
 	//FIntVector PlayerRelativeLocation;
-	TMap<TObjectPtr<APlayerController>, FIntVector> ManagedPlayersPositionsMap;
+	TMap<int32, FIntVector> ManagedPlayersPositionsMap;
+
+	
 
 private:
 	
 	TArray< FChunkThreadedWorkOrderBase> OrderedChunkThreadedWorkOrders;
 
-	//bool IsFartherToPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B);
-	bool IsCloserToNearestPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B);
+	bool IsCloserToNearestPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B, const TMap<int32, FIntVector>& ManagedPlayersPositionsMapConstCopy);
 
 protected:
 	FRunnableThread* Thread = nullptr;

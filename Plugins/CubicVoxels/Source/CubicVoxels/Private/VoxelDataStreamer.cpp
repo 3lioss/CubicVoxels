@@ -1,7 +1,7 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
+#include "VoxelDataStreamer.h"
 #include "GameFramework/PlayerController.h"
 #include "CoreMinimal.h"
-#include "VoxelDataStreamer.h"
 #include "Engine/ActorChannel.h"
 #include "VoxelWorld.h"
 

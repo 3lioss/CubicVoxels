@@ -20,6 +20,7 @@ void AVoxelWorld::TestWorldSerialization()
 // Sets default values
 AVoxelWorld::AVoxelWorld()
 {
+	
 	bReplicates = true;
 	PrimaryActorTick.bCanEverTick = true;
 	
@@ -58,21 +59,7 @@ AVoxelWorld::AVoxelWorld()
 	WorldGenerationFunction = &DefaultGenerateBlockAt;
 
 	SetActorScale3D(FVector(1,1,1));
-
-	if (HasAuthority())
-	{
-		NumberOfWorldGenerationThreads = 1;
-		WorldGenerationThreads.SetNum(NumberOfWorldGenerationThreads);
-		for (int32 i = 0; i < NumberOfWorldGenerationThreads; i++)
-		{
-			WorldGenerationThreads[i] = new FVoxelWorldGenerationRunnable;
-		}
-		CurrentGenerationThreadIndex = 0;
-
-		ManagedPlayerDataMap = TMap<TObjectPtr<APlayerController>, FVoxelWorldManagedPlayerData>();
-	}
 	
-
 	WorldName = "MyWorld";
 	
 }
@@ -694,24 +681,28 @@ FVoxel AVoxelWorld::GetBlockAt(FVector BlockWorldLocation)
 
 }
 
-void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd, bool IsOnServer)
+void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 {
 
-	if (IsOnServer)
+	if (IsInMultiplayerMode && HasAuthority())
 	{
-		
-	
 		FVoxelWorldManagedPlayerData CurrentPlayerData;
+		if (WorldGenerationThreads.Num() == 0)
+		{
+			ServerThreadsSetup(1);
+		}
+		UE_LOG(LogTemp, Display, TEXT("Numer of threads: %d"), WorldGenerationThreads.Num())
 		CurrentPlayerData.PlayerWorldGenerationThread = WorldGenerationThreads[CurrentGenerationThreadIndex];
 		CurrentPlayerData.ChunkGenerationOrdersQueuePtr = CurrentPlayerData.PlayerWorldGenerationThread->GetGenerationOrdersQueue();
 
 		//Separating chunk insides and sides generation into different threads might get rid of some stutters
 		CurrentPlayerData.PlayerChunkSidesGenerationThread = CurrentPlayerData.PlayerWorldGenerationThread;
 		CurrentPlayerData.ChunkSidesMeshingOrdersQueuePtr = CurrentPlayerData.PlayerChunkSidesGenerationThread->GetGenerationOrdersQueue();
-
+		UE_LOG(LogTemp, Display, TEXT("Adding player to the managed players map"))
 		ManagedPlayerDataMap.Add(PlayerToAdd, CurrentPlayerData);
-
+		UE_LOG(LogTemp, Display, TEXT("Updating thread index"))
 		CurrentGenerationThreadIndex = CurrentGenerationThreadIndex + 1 % NumberOfWorldGenerationThreads;
+		UE_LOG(LogTemp, Display, TEXT("Finished adding managed player"))
 	}
 	else
 	{
@@ -729,6 +720,13 @@ void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd, bool IsOnServ
 
 		ManagedPlayerDataMap.Add(PlayerToAdd, CurrentPlayerData);
 	}
+
+	int32 PlayerIndex = 0;
+	while (PlayerIDs.FindKey(PlayerIndex))
+	{
+		PlayerIndex = PlayerIndex + 1 % 10000000;
+	}
+	PlayerIDs.Add(PlayerToAdd, PlayerIndex);
 	
 }
 
@@ -841,17 +839,25 @@ void AVoxelWorld::UpdatePlayerPositionsOnThreads()
 	if (!ManagedPlayerDataMap.IsEmpty())
 	{
 		PlayerPositionsUpdateOnThreadsMutex.Lock();
+		
 		for (const auto CurrentPlayerThreadPair : ManagedPlayerDataMap)
 		{
 			//TODO: Find out why player controller is sometimes not valid
 			if (IsValid(CurrentPlayerThreadPair.Key))
 			{
-				FVector PlayerPosition = CurrentPlayerThreadPair.Key->GetPawn()->GetActorLocation();
-				const auto LoadingOrigin = FloorVector(this->GetActorRotation().GetInverse().RotateVector((PlayerPosition - this->GetActorLocation())/(ChunkSize*DefaultVoxelSize*this->GetActorScale().X)));
-				CurrentPlayerThreadPair.Value.PlayerWorldGenerationThread->ManagedPlayersPositionsMap.Add(CurrentPlayerThreadPair.Key, LoadingOrigin);
+
+				const auto PlayerIDPtr = PlayerIDs.Find(CurrentPlayerThreadPair.Key);
+				if (PlayerIDPtr)
+				{
+					FVector PlayerPosition = CurrentPlayerThreadPair.Key->GetPawn()->GetActorLocation();
+					const auto LoadingOrigin = FloorVector(this->GetActorRotation().GetInverse().RotateVector((PlayerPosition - this->GetActorLocation())/(ChunkSize*DefaultVoxelSize*this->GetActorScale().X)));
+					CurrentPlayerThreadPair.Value.PlayerWorldGenerationThread->ManagedPlayersPositionsMap.Add( *PlayerIDPtr, LoadingOrigin);
+				}
+				
 			}
 			
 		}
+		
 		PlayerPositionsUpdateOnThreadsMutex.Unlock();
 	}
 	
@@ -908,6 +914,19 @@ FString AVoxelWorld::GetRegionName(FIntVector RegionLocation)
 	RegionCoordinates.AppendInt(RegionLocation.Z);
 
 	return RegionCoordinates;
+}
+
+void AVoxelWorld::ServerThreadsSetup(int32 NumberOfThreads)
+{
+	NumberOfWorldGenerationThreads = NumberOfThreads;
+	WorldGenerationThreads.SetNum(NumberOfWorldGenerationThreads);
+	for (int32 i = 0; i < NumberOfWorldGenerationThreads; i++)
+	{
+		WorldGenerationThreads[i] = new FVoxelWorldGenerationRunnable;
+	}
+	CurrentGenerationThreadIndex = 0;
+
+	ManagedPlayerDataMap = TMap<TObjectPtr<APlayerController>, FVoxelWorldManagedPlayerData>();
 }
 
 void AVoxelWorld::DownloadWorldSave_Implementation()
@@ -1012,9 +1031,9 @@ void AVoxelWorld::BeginPlay()
 
 	//If the game is singleplayer, the player around which the world is generated is automatically registered
 	//On a server, players must be added as they join
-	if (!HasAuthority())
+	if (!IsInMultiplayerMode)
 	{
-		AddManagedPlayer(GetWorld()->GetFirstPlayerController(), false);
+		AddManagedPlayer(GetWorld()->GetFirstPlayerController());
 		
 	}
 
@@ -1037,7 +1056,7 @@ void AVoxelWorld::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (IsEnabled)
+	if (IsEnabled && (!IsInMultiplayerMode || HasAuthority()))
 	{
 		UpdatePlayerPositionsOnThreads();
 	
