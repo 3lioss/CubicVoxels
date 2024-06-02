@@ -8,6 +8,7 @@
 #include "ReplicationStructs.h"
 #include "ThreadedWorldGeneration/FVoxelWorldGenerationRunnable.h"
 #include "Serialization/VoxelWorldGlobalDataSaveGame.h"
+#include "VoxelDataStreamer.h"
 #include "VoxelWorld.generated.h"
 
 class AChunk;
@@ -19,7 +20,8 @@ UCLASS()
 class AVoxelWorld : public AActor
 {
 	GENERATED_BODY()
-	
+
+	friend AVoxelDataStreamer;
 public:
 	//TODO: remove this
 	UFUNCTION(BlueprintCallable)
@@ -28,7 +30,10 @@ public:
 	// Sets default values for this actor's properties
 	AVoxelWorld();
 
-	//Chunk loading distance parameters
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool IsEnabled; //Should be false by default in multiplayer
+
+	//Chunk loading distance parameters //TODO: Make it mutable at runtime
 	int32 ViewDistance;
 	int32 VerticalViewDistance;
 
@@ -71,9 +76,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	FVoxel GetBlockAt(FVector BlockWorldLocation);
 
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	void DownloadWorldSave();
+
 	//Function to add a player to be managed by the VoxelWorld
 	UFUNCTION(BlueprintCallable)
-	void AddManagedPlayer(APlayerController* PlayerToAdd, bool IsOnServer);
+	void AddManagedPlayer(APlayerController* PlayerToAdd, bool IsOnServer = true);
 	
 	
 private:
@@ -111,6 +119,19 @@ private:
 	int32 DistanceToNearestPlayer(FIntVector ChunkLocation);
 	TObjectPtr<APlayerController> NearestPlayerToChunk(FIntVector ChunkLocation);
 
+	FString GetRegionName(FIntVector RegionLocation);
+
+	//Functions and variables used for world download from server
+	//TMap<TObjectPtr<APlayerController>, FVoxelStreamManager> PlayerWorldDownloadingStreamMap;
+
+	UFUNCTION(Client, Reliable)
+	void SendVoxelStreamChunk(FVoxelStreamChunk Data);
+
+	TArray<uint8> SerializedDataAccumulator;
+
+	void OverwriteSaveWithSerializedData(TArray<uint8> Data);
+
+	int32 MaxBytesPerStreamChunk;
 	
 protected:
 	// Called when the game starts or when spawned
@@ -126,7 +147,6 @@ protected:
 	
 	static FVoxel DefaultGenerateBlockAt(FVector Position);
 
-	void AddGeometryToChunk(FIntVector ChunkLocation, FChunkGeometry GeometryData);
 
 	//SaveGame that stores all the global data of the VoxelWorld actor
 	//That is the data which is not owned by a particular region
@@ -141,34 +161,3 @@ public:
 };
 
 
-// class FVoxelChunkSideCookingAsyncTask : public FNonAbandonableTask //Asynchronous task that generates a chunk's face's quad data
-// {
-// 	FChunkData* TaskChunkToContinueLoadingBlocks;
-// 	FChunkData* TaskNeighbourChunkBlocks;
-// 	int32 TaskDirectionIndex;
-// 	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* TaskChunkQuadsToLoad;
-// 	FIntVector TaskChunkToContinueLoadingCoordinates;
-//  
-// public:
-// 	//Default constructor
-// 	FVoxelChunkSideCookingAsyncTask(FChunkData* ChunkToContinueLoadingBlocks, FChunkData* TaskNeighbourChunkBlocks, int32 DirectionIndex, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad, FIntVector ChunkToContinueLoadingCoordinates)
-// 	{
-// 		this->TaskChunkToContinueLoadingBlocks = ChunkToContinueLoadingBlocks;
-// 		this->TaskNeighbourChunkBlocks = TaskNeighbourChunkBlocks;
-// 		this->TaskDirectionIndex = DirectionIndex;
-// 		this->TaskChunkQuadsToLoad = ChunkQuadsToLoad;
-// 		this->TaskChunkToContinueLoadingCoordinates = ChunkToContinueLoadingCoordinates;
-// 	}
-//  
-// 	//This function is needed from the API of the engine. 
-// 	FORCEINLINE TStatId GetStatId() const
-// 	{
-// 		RETURN_QUICK_DECLARE_CYCLE_STAT(PrimeCalculationAsyncTask, STATGROUP_ThreadPoolAsyncTasks);
-// 	}
-//  
-// 	//This function is executed when we tell our task to execute
-// 	void DoWork()
-// 	{
-// 		ComputeChunkSideFacesFromData( TaskChunkToContinueLoadingBlocks, TaskNeighbourChunkBlocks, TaskDirectionIndex, TaskChunkQuadsToLoad,  TaskChunkToContinueLoadingCoordinates);
-// 	}
-// };

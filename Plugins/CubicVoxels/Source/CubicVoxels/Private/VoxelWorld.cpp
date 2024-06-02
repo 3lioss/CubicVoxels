@@ -7,6 +7,7 @@
 #include "Serialization/RegionDataSaveGame.h"
 #include "Kismet/GameplayStatics.h"
 #include "Chunk.h"
+#include "VoxelDataStreamer.h"
 #include "Serialization/VoxelWorldGlobalDataSaveGame.h"
 #include "Serialization/VoxelWorldNetworkSerializationSaveGame.h"
 
@@ -67,7 +68,10 @@ AVoxelWorld::AVoxelWorld()
 			WorldGenerationThreads[i] = new FVoxelWorldGenerationRunnable;
 		}
 		CurrentGenerationThreadIndex = 0;
+
+		ManagedPlayerDataMap = TMap<TObjectPtr<APlayerController>, FVoxelWorldManagedPlayerData>();
 	}
+	
 
 	WorldName = "MyWorld";
 	
@@ -294,6 +298,7 @@ void AVoxelWorld::IterateChunkUnloading()
 	
 }
 
+
 TArray<uint8> AVoxelWorld::GetSerializedWorldData()
 {
 	auto Serializer = Cast<UVoxelWorldNetworkSerializationSaveGame>(UGameplayStatics::CreateSaveGameObject(UVoxelWorldNetworkSerializationSaveGame::StaticClass()));
@@ -326,6 +331,7 @@ TArray<uint8> AVoxelWorld::GetSerializedWorldData()
 	
 }
 
+
 bool AVoxelWorld::IsChunkLoaded(FIntVector ChunkLocation)
 {
 	/*Tests if a chunk is marked as loaded. A true return value doesn't necessarily mean its chunk data is finished loading*/
@@ -350,17 +356,10 @@ TMap<FIntVector, FChunkData>* AVoxelWorld::GetRegionSavedData(FIntVector ChunkRe
 	}
 	else
 	{
-		FString RegionCoordinates = WorldName + "\\";
-		RegionCoordinates.AppendInt(ChunkRegionLocation.X);
-		RegionCoordinates.Append(",");
-		RegionCoordinates.AppendInt(ChunkRegionLocation.Y);
-		RegionCoordinates.Append(",");
-		RegionCoordinates.AppendInt(ChunkRegionLocation.Z);
-		const FString& SaveSlotName = RegionCoordinates;
-
-		if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
+		const FString& RegionSaveSlot = GetRegionName(ChunkRegionLocation);
+		if (UGameplayStatics::DoesSaveGameExist(RegionSaveSlot, 0))
 		{
-			auto Temp = Cast<URegionDataSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
+			auto Temp = Cast<URegionDataSaveGame>(UGameplayStatics::LoadGameFromSlot(RegionSaveSlot, 0));
 			if (Temp)
 			{
 				LoadedRegions.Add(ChunkRegionLocation, (Temp->RegionData));
@@ -409,17 +408,10 @@ void AVoxelWorld::SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData
 
 	else
 	{
-		FString RegionCoordinates = WorldName + "\\";
-		RegionCoordinates.AppendInt(GetRegionOfChunk(ChunkLocation).X);
-		RegionCoordinates.Append(",");
-		RegionCoordinates.AppendInt(GetRegionOfChunk(ChunkLocation).Y);
-		RegionCoordinates.Append(",");
-		RegionCoordinates.AppendInt(GetRegionOfChunk(ChunkLocation).Z);
-		const FString& SaveSlotName = RegionCoordinates;
-
-		if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
+		const FString& RegionSaveSlot = GetRegionName(GetRegionOfChunk(ChunkLocation));
+		if (UGameplayStatics::DoesSaveGameExist(RegionSaveSlot, 0))
 		{
-			auto Temp = Cast<URegionDataSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
+			auto Temp = Cast<URegionDataSaveGame>(UGameplayStatics::LoadGameFromSlot( RegionSaveSlot, 0));
 			if (Temp)
 			{
 				LoadedRegions.Add(GetRegionOfChunk(ChunkLocation), (Temp->RegionData));
@@ -501,16 +493,9 @@ void AVoxelWorld::SaveVoxelWorld()
 		auto SaveObject = Cast<URegionDataSaveGame>(UGameplayStatics::CreateSaveGameObject(URegionDataSaveGame::StaticClass()));
 
 		SaveObject->RegionData = CurrentRegionData;
-	
-		FString ChunkCoordinates = WorldName + "\\";
-		ChunkCoordinates.AppendInt(CurrentRegionToSave.X);
-		ChunkCoordinates.Append(",");
-		ChunkCoordinates.AppendInt(CurrentRegionToSave.Y);
-		ChunkCoordinates.Append(",");
-		ChunkCoordinates.AppendInt(CurrentRegionToSave.Z);
-		const FString& SaveSlotName = ChunkCoordinates;
-	
-		UGameplayStatics::SaveGameToSlot(SaveObject, SaveSlotName, 0 );
+
+		const FString& RegionSaveSlot = GetRegionName(CurrentRegionToSave);
+		UGameplayStatics::SaveGameToSlot(SaveObject,RegionSaveSlot , 0 );
 		
 	}
 
@@ -777,9 +762,7 @@ FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
 	}
 }
 
-void AVoxelWorld::AddGeometryToChunk(FIntVector ChunkLocation, FChunkGeometry GeometryData)
-{
-}
+
 
 
 void AVoxelWorld::CreateChunkAt(FIntVector ChunkLocation,
@@ -854,15 +837,24 @@ FIntVector AVoxelWorld::GetRegionOfChunk(FIntVector ChunkCoordinates)
 
 void AVoxelWorld::UpdatePlayerPositionsOnThreads()
 {
-	PlayerPositionsUpdateOnThreadsMutex.Lock();
-	for (const auto CurrentPlayerThreadPair : ManagedPlayerDataMap)
+	
+	if (!ManagedPlayerDataMap.IsEmpty())
 	{
-		FVector PlayerPosition = CurrentPlayerThreadPair.Key->GetPawn()->GetActorLocation();
-		const auto LoadingOrigin = FloorVector(this->GetActorRotation().GetInverse().RotateVector((PlayerPosition - this->GetActorLocation())/(ChunkSize*DefaultVoxelSize*this->GetActorScale().X)));
-		//CurrentPlayerThreadPair.Value.PlayerWorldGenerationThread->PlayerRelativeLocation = LoadingOrigin;
-		CurrentPlayerThreadPair.Value.PlayerWorldGenerationThread->ManagedPlayersPositionsMap.Add(CurrentPlayerThreadPair.Key, LoadingOrigin);
+		PlayerPositionsUpdateOnThreadsMutex.Lock();
+		for (const auto CurrentPlayerThreadPair : ManagedPlayerDataMap)
+		{
+			//TODO: Find out why player controller is sometimes not valid
+			if (IsValid(CurrentPlayerThreadPair.Key))
+			{
+				FVector PlayerPosition = CurrentPlayerThreadPair.Key->GetPawn()->GetActorLocation();
+				const auto LoadingOrigin = FloorVector(this->GetActorRotation().GetInverse().RotateVector((PlayerPosition - this->GetActorLocation())/(ChunkSize*DefaultVoxelSize*this->GetActorScale().X)));
+				CurrentPlayerThreadPair.Value.PlayerWorldGenerationThread->ManagedPlayersPositionsMap.Add(CurrentPlayerThreadPair.Key, LoadingOrigin);
+			}
+			
+		}
+		PlayerPositionsUpdateOnThreadsMutex.Unlock();
 	}
-	PlayerPositionsUpdateOnThreadsMutex.Unlock();
+	
 
 }
 
@@ -906,6 +898,93 @@ TObjectPtr<APlayerController> AVoxelWorld::NearestPlayerToChunk(FIntVector Chunk
 	return Result;
 }
 
+FString AVoxelWorld::GetRegionName(FIntVector RegionLocation)
+{
+	FString RegionCoordinates = WorldName + "\\";
+	RegionCoordinates.AppendInt(RegionLocation.X);
+	RegionCoordinates.Append(",");
+	RegionCoordinates.AppendInt(RegionLocation.Y);
+	RegionCoordinates.Append(",");
+	RegionCoordinates.AppendInt(RegionLocation.Z);
+
+	return RegionCoordinates;
+}
+
+void AVoxelWorld::DownloadWorldSave_Implementation()
+{
+	
+	APlayerController* SendingPlayerController = Cast<APlayerController>(GetOwner());
+
+	if (SendingPlayerController)
+	{
+		auto StreamManager = CreateDefaultSubobject<AVoxelDataStreamer>("Streamer"); 
+
+
+		StreamManager->SetOwner(SendingPlayerController);
+		StreamManager->OwningPlayerController = SendingPlayerController;
+		StreamManager->ParentVoxelWorld = this;
+		StreamManager->DataToStream = GetSerializedWorldData();
+		StreamManager->CurrentIndex = 0;
+		StreamManager->IsActive = true;
+		
+	}
+}
+
+void AVoxelWorld::SendVoxelStreamChunk_Implementation(FVoxelStreamChunk Data)
+{
+	if (Data.StartIndex + Data.DataSlice.Num() >= Data.EndOfStreamIndex)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Invalid data chunk received while streaming world to client"))	
+	}
+	
+	if (SerializedDataAccumulator.Num() == 0)
+	{
+		SerializedDataAccumulator.SetNum(Data.EndOfStreamIndex + 1);
+	}
+
+	for (int32 i = 0; i < Data.DataSlice.Num(); i++)
+	{
+		SerializedDataAccumulator[i + Data.StartIndex] = Data.DataSlice[i];
+	}
+
+	if (Data.StartIndex + Data.DataSlice.Num() == Data.EndOfStreamIndex - 1)
+	{
+		OverwriteSaveWithSerializedData(SerializedDataAccumulator);
+		SerializedDataAccumulator.Empty();
+	}
+}
+
+void AVoxelWorld::OverwriteSaveWithSerializedData(TArray<uint8> Data)
+{
+	UVoxelWorldNetworkSerializationSaveGame* Serializer = Cast<UVoxelWorldNetworkSerializationSaveGame>(UGameplayStatics::LoadGameFromMemory(Data));
+
+	if (Serializer)
+	{
+		WorldName = Serializer->WorldName;
+
+		TSet<FIntVector> SavedRegions;
+		
+		for (const auto& Region : Serializer->WorldVoxelData)
+		{
+			SavedRegions.Add(Region.Key);
+
+			auto SaveObject = Cast<URegionDataSaveGame>(UGameplayStatics::CreateSaveGameObject(URegionDataSaveGame::StaticClass()));
+
+			SaveObject->RegionData = Region.Value.RegionData;
+
+			const FString& RegionSaveSlot = GetRegionName(Region.Key);
+			UGameplayStatics::SaveGameToSlot(SaveObject, RegionSaveSlot, 0 );
+			
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not deserialize saved data"))
+	}
+
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Overwrote client save file with server save file"));	
+}
+
 // Called when the game starts or when spawned
 void AVoxelWorld::BeginPlay()
 {
@@ -931,18 +1010,12 @@ void AVoxelWorld::BeginPlay()
 		WorldSavedInfo = Cast<UVoxelWorldGlobalDataSaveGame>(UGameplayStatics::CreateSaveGameObject(UVoxelWorldGlobalDataSaveGame::StaticClass()));
 	}
 
-	//Registers the players who play in the voxel world
-	if (HasAuthority())
-	{
-		for (TPlayerControllerIterator<APlayerController>::ServerAll It(GetWorld()); It; ++It)
-		{
-			TObjectPtr<APlayerController> CurrentPlayerController = *It;	
-			AddManagedPlayer(CurrentPlayerController, true);
-		}
-	}
-	else
+	//If the game is singleplayer, the player around which the world is generated is automatically registered
+	//On a server, players must be added as they join
+	if (!HasAuthority())
 	{
 		AddManagedPlayer(GetWorld()->GetFirstPlayerController(), false);
+		
 	}
 
 }
@@ -963,17 +1036,20 @@ void AVoxelWorld::BeginDestroy()
 void AVoxelWorld::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	
-	UpdatePlayerPositionsOnThreads();
-	
-	IterateChunkCreationNearPlayers();
 
-	IterateGeneratedChunkLoadingAndSidesGeneration();
+	if (IsEnabled)
+	{
+		UpdatePlayerPositionsOnThreads();
 	
-	IterateChunkMeshing();
-	
-	IterateChunkUnloading();
+		IterateChunkCreationNearPlayers();
 
+		IterateGeneratedChunkLoadingAndSidesGeneration();
+	
+		IterateChunkMeshing();
+	
+		IterateChunkUnloading();
+	}
+	
 }
 
 int32 AVoxelWorld::OneNorm(FIntVector Vector) const
