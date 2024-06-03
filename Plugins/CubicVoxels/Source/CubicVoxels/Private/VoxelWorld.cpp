@@ -61,6 +61,8 @@ AVoxelWorld::AVoxelWorld()
 	SetActorScale3D(FVector(1,1,1));
 	
 	WorldName = "MyWorld";
+
+	NetworkMode = EVoxelWorldNetworkMode::ServerSendsFullGeometry;
 	
 }
 
@@ -684,7 +686,7 @@ FVoxel AVoxelWorld::GetBlockAt(FVector BlockWorldLocation)
 void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 {
 
-	if (IsInMultiplayerMode && HasAuthority())
+	if (NetworkMode !=  EVoxelWorldNetworkMode::ClientOnly && HasAuthority())
 	{
 		FVoxelWorldManagedPlayerData CurrentPlayerData;
 		if (WorldGenerationThreads.Num() == 0)
@@ -938,38 +940,11 @@ void AVoxelWorld::DownloadWorldSave_Implementation()
 	{
 		auto StreamManager = CreateDefaultSubobject<AVoxelDataStreamer>("Streamer"); 
 
-
 		StreamManager->SetOwner(SendingPlayerController);
-		StreamManager->OwningPlayerController = SendingPlayerController;
-		StreamManager->ParentVoxelWorld = this;
-		StreamManager->DataToStream = GetSerializedWorldData();
-		StreamManager->CurrentIndex = 0;
-		StreamManager->IsActive = true;
+		TFunction<void(TArray<uint8>)> SaveFileOverwriteFunction = [this](const TArray<uint8>& Data){ return OverwriteSaveWithSerializedData(Data); };
 		
-	}
-}
-
-void AVoxelWorld::SendVoxelStreamChunk_Implementation(FVoxelStreamChunk Data)
-{
-	if (Data.StartIndex + Data.DataSlice.Num() >= Data.EndOfStreamIndex)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Invalid data chunk received while streaming world to client"))	
-	}
-	
-	if (SerializedDataAccumulator.Num() == 0)
-	{
-		SerializedDataAccumulator.SetNum(Data.EndOfStreamIndex + 1);
-	}
-
-	for (int32 i = 0; i < Data.DataSlice.Num(); i++)
-	{
-		SerializedDataAccumulator[i + Data.StartIndex] = Data.DataSlice[i];
-	}
-
-	if (Data.StartIndex + Data.DataSlice.Num() == Data.EndOfStreamIndex - 1)
-	{
-		OverwriteSaveWithSerializedData(SerializedDataAccumulator);
-		SerializedDataAccumulator.Empty();
+		StreamManager->ActivateStreamer(GetSerializedWorldData(), SaveFileOverwriteFunction, 32000);
+		
 	}
 }
 
@@ -1031,7 +1006,7 @@ void AVoxelWorld::BeginPlay()
 
 	//If the game is singleplayer, the player around which the world is generated is automatically registered
 	//On a server, players must be added as they join
-	if (!IsInMultiplayerMode)
+	if (NetworkMode == EVoxelWorldNetworkMode::ClientOnly)
 	{
 		AddManagedPlayer(GetWorld()->GetFirstPlayerController());
 		
@@ -1056,7 +1031,7 @@ void AVoxelWorld::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (IsEnabled && (!IsInMultiplayerMode || HasAuthority()))
+	if (IsEnabled && (NetworkMode == EVoxelWorldNetworkMode::ServerSendsVoxelDiffs ||  NetworkMode == EVoxelWorldNetworkMode::ClientOnly || (NetworkMode == EVoxelWorldNetworkMode::ServerSendsFullGeometry && HasAuthority())))
 	{
 		UpdatePlayerPositionsOnThreads();
 	

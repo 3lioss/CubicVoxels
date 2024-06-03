@@ -3,7 +3,6 @@
 #include "GameFramework/PlayerController.h"
 #include "CoreMinimal.h"
 #include "Engine/ActorChannel.h"
-#include "VoxelWorld.h"
 
 // Sets default values
 AVoxelDataStreamer::AVoxelDataStreamer()
@@ -13,8 +12,22 @@ AVoxelDataStreamer::AVoxelDataStreamer()
 	bReplicates = true;
 	IsActive = false;
 	CurrentIndex = 0;
+	OwningPlayerController = nullptr;
+	FunctionToCallOnTransferFinishedPtr = nullptr;
 
-	MaxBytesPerStreamChunk = 32000;
+	ChunkSize = 32000;
+}
+
+void AVoxelDataStreamer::ActivateStreamer(const TArray<uint8>& DataToSend, const TFunction<void(TArray<uint8>)>& FunctionToCallOnDataPtr, int32 MaxBytesPerStreamChunk)
+{
+	DataToStream = DataToSend;
+	ChunkSize = MaxBytesPerStreamChunk;
+
+	CurrentIndex = 0;
+	
+	FunctionToCallOnTransferFinishedPtr = FunctionToCallOnDataPtr;
+
+	IsActive = true;
 }
 
 // Called when the game starts or when spawned
@@ -22,6 +35,30 @@ void AVoxelDataStreamer::BeginPlay()
 {
 	Super::BeginPlay();
 	
+}
+
+void AVoxelDataStreamer::SendVoxelStreamChunk_Implementation(FVoxelStreamChunk Data)
+{
+	if (Data.StartIndex + Data.DataSlice.Num() >= Data.EndOfStreamIndex)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Invalid data chunk received while streaming world to client"))	
+	}
+	
+	if (SerializedDataAccumulator.Num() == 0)
+	{
+		SerializedDataAccumulator.SetNum(Data.EndOfStreamIndex + 1);
+	}
+
+	for (int32 i = 0; i < Data.DataSlice.Num(); i++)
+	{
+		SerializedDataAccumulator[i + Data.StartIndex] = Data.DataSlice[i];
+	}
+
+	if (Data.StartIndex + Data.DataSlice.Num() == Data.EndOfStreamIndex - 1)
+	{
+		FunctionToCallOnTransferFinishedPtr(SerializedDataAccumulator);
+		SerializedDataAccumulator.Empty();
+	}
 }
 
 // Called every frame
@@ -32,13 +69,13 @@ void AVoxelDataStreamer::Tick(float DeltaTime)
 	if (IsValid(OwningPlayerController))
 	{
 		auto* Channel =  OwningPlayerController->NetConnection->FindActorChannelRef(this);
-		while ( Channel->NumOutRec < (RELIABLE_BUFFER/2) && (CurrentIndex + MaxBytesPerStreamChunk < DataToStream.Num()))
+		while ( Channel->NumOutRec < (RELIABLE_BUFFER/2) && (CurrentIndex + ChunkSize < DataToStream.Num()))
 		{
 			FVoxelStreamChunk ChunkToSend;
 			ChunkToSend.StartIndex = CurrentIndex;
 			ChunkToSend.EndOfStreamIndex = DataToStream.Num();
 			
-			const auto N = FMath::Max(CurrentIndex + MaxBytesPerStreamChunk, DataToStream.Num() - 1);
+			const auto N = FMath::Max(CurrentIndex + ChunkSize, DataToStream.Num() - 1);
 			ChunkToSend.DataSlice.SetNum(N+1);
 			for (int32 i = 0; i < N; i++)
 			{
@@ -47,7 +84,7 @@ void AVoxelDataStreamer::Tick(float DeltaTime)
 			
 			CurrentIndex += N;
 			
-			ParentVoxelWorld->SendVoxelStreamChunk(ChunkToSend);
+			SendVoxelStreamChunk(ChunkToSend);
 		}
 	}
 	

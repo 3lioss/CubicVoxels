@@ -34,7 +34,7 @@ public:
 	bool IsEnabled; 
 
 	UPROPERTY(EditAnywhere)
-	bool IsInMultiplayerMode;
+	EVoxelWorldNetworkMode NetworkMode;
 
 	//Chunk loading distance parameters //TODO: Make it mutable at runtime
 	int32 ViewDistance;
@@ -133,12 +133,6 @@ private:
 
 	//Functions and variables used for world download from server
 	//TMap<TObjectPtr<APlayerController>, FVoxelStreamManager> PlayerWorldDownloadingStreamMap;
-
-	UFUNCTION(Client, Reliable)
-	void SendVoxelStreamChunk(FVoxelStreamChunk Data);
-
-	TArray<uint8> SerializedDataAccumulator;
-
 	void OverwriteSaveWithSerializedData(TArray<uint8> Data);
 
 	int32 MaxBytesPerStreamChunk;

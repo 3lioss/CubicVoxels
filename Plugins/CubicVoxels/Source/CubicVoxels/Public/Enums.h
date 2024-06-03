@@ -11,3 +11,9 @@ enum class EChunkThreadedWorkOrderType
 {
 	GenerationAndMeshing, MeshingFromData, GeneratingAndMeshingWithAdditiveData, GeneratingExistingChunksSides
 };
+
+UENUM()
+enum class EVoxelWorldNetworkMode
+{
+	ClientOnly, ServerSendsVoxelDiffs, ServerSendsFullGeometry
+};
