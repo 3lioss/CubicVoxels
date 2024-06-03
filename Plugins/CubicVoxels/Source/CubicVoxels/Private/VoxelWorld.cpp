@@ -693,16 +693,23 @@ void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 		{
 			ServerThreadsSetup(1);
 		}
-		UE_LOG(LogTemp, Display, TEXT("Numer of threads: %d"), WorldGenerationThreads.Num())
 		CurrentPlayerData.PlayerWorldGenerationThread = WorldGenerationThreads[CurrentGenerationThreadIndex];
 		CurrentPlayerData.ChunkGenerationOrdersQueuePtr = CurrentPlayerData.PlayerWorldGenerationThread->GetGenerationOrdersQueue();
 
 		//Separating chunk insides and sides generation into different threads might get rid of some stutters
 		CurrentPlayerData.PlayerChunkSidesGenerationThread = CurrentPlayerData.PlayerWorldGenerationThread;
 		CurrentPlayerData.ChunkSidesMeshingOrdersQueuePtr = CurrentPlayerData.PlayerChunkSidesGenerationThread->GetGenerationOrdersQueue();
-		UE_LOG(LogTemp, Display, TEXT("Adding player to the managed players map"))
+		
+
+		if (NetworkMode == EVoxelWorldNetworkMode::ServerSendsFullGeometry)
+		{
+			TObjectPtr<AVoxelDataStreamer> PlayerDataStreamer = CreateDefaultSubobject<AVoxelDataStreamer>("Player dedicated data streamer");
+			PlayerDataStreamer->SetOwner(PlayerToAdd);
+			PlayerDataStreamer->OwningPlayerController = PlayerToAdd;
+			CurrentPlayerData.PlayerDataStreamer = PlayerDataStreamer;
+		}
+
 		ManagedPlayerDataMap.Add(PlayerToAdd, CurrentPlayerData);
-		UE_LOG(LogTemp, Display, TEXT("Updating thread index"))
 		CurrentGenerationThreadIndex = CurrentGenerationThreadIndex + 1 % NumberOfWorldGenerationThreads;
 		UE_LOG(LogTemp, Display, TEXT("Finished adding managed player"))
 	}
@@ -943,7 +950,7 @@ void AVoxelWorld::DownloadWorldSave_Implementation()
 		StreamManager->SetOwner(SendingPlayerController);
 		TFunction<void(TArray<uint8>)> SaveFileOverwriteFunction = [this](const TArray<uint8>& Data){ return OverwriteSaveWithSerializedData(Data); };
 		
-		StreamManager->ActivateStreamer(GetSerializedWorldData(), SaveFileOverwriteFunction, 32000);
+		StreamManager->AddDataToStream(FVoxelStreamData(GetUniqueID(), FName("WorldSaveStream"), GetSerializedWorldData(), 32000));
 		
 	}
 }

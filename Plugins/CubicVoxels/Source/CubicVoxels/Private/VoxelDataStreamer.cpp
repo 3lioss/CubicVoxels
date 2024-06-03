@@ -3,6 +3,7 @@
 #include "GameFramework/PlayerController.h"
 #include "CoreMinimal.h"
 #include "Engine/ActorChannel.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 AVoxelDataStreamer::AVoxelDataStreamer()
@@ -10,25 +11,17 @@ AVoxelDataStreamer::AVoxelDataStreamer()
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
-	IsActive = false;
-	CurrentIndex = 0;
+
+	CurrentStream = nullptr;
+
 	OwningPlayerController = nullptr;
-	FunctionToCallOnTransferFinishedPtr = nullptr;
-
-	ChunkSize = 32000;
 }
 
-void AVoxelDataStreamer::ActivateStreamer(const TArray<uint8>& DataToSend, const TFunction<void(TArray<uint8>)>& FunctionToCallOnDataPtr, int32 MaxBytesPerStreamChunk)
+void AVoxelDataStreamer::AddDataToStream(FVoxelStreamData StreamData)
 {
-	DataToStream = DataToSend;
-	ChunkSize = MaxBytesPerStreamChunk;
-
-	CurrentIndex = 0;
-	
-	FunctionToCallOnTransferFinishedPtr = FunctionToCallOnDataPtr;
-
-	IsActive = true;
+	StreamsQueue.Enqueue(StreamData);
 }
+
 
 // Called when the game starts or when spawned
 void AVoxelDataStreamer::BeginPlay()
@@ -53,57 +46,70 @@ void AVoxelDataStreamer::SendVoxelStreamChunk_Implementation(FVoxelStreamChunk D
 	{
 		SerializedDataAccumulator[i + Data.StartIndex] = Data.DataSlice[i];
 	}
+	
+}
+//UObject* Object = GetWorld()->GetNetDriver()->GuidCache->GetObjectFromNetGUID(StreamOwner);
 
-	if (Data.StartIndex + Data.DataSlice.Num() == Data.EndOfStreamIndex - 1)
-	{
-		FunctionToCallOnTransferFinishedPtr(SerializedDataAccumulator);
-		SerializedDataAccumulator.Empty();
-	}
+void AVoxelDataStreamer::CallEndFunctionOnClient_Implementation(int32 StreamOwner, FName StreamType)
+{
+		
+	// TArray<AActor*> OutActors;
+	// UGameplayStatics::GetAllActorsOfClass(GetWorld(), , OutActors);
+	//  
+	// // OutActors contains all BP and C++ actors that are or inherit from AMyInterfaceActor
+	// for (AActor* CurrentActor : OutActors)
+	// {
+	// 	// Each CurrentActor calls its own MyFunction implementation
+	// 	UE_LOG(LogTemp, Log, TEXT("%s : %s"), *CurrentActor->GetName(), *IMyInterface::Execute_MyFunction(Cast<AMyInterfaceActor>(CurrentActor)));
+	// }
 }
 
 // Called every frame
 void AVoxelDataStreamer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	if (IsValid(OwningPlayerController))
+	
+	if (CurrentStream)
 	{
-		auto* Channel =  OwningPlayerController->NetConnection->FindActorChannelRef(this);
-		while ( Channel->NumOutRec < (RELIABLE_BUFFER/2) && (CurrentIndex + ChunkSize < DataToStream.Num()))
+		if (IsValid(OwningPlayerController))
 		{
-			FVoxelStreamChunk ChunkToSend;
-			ChunkToSend.StartIndex = CurrentIndex;
-			ChunkToSend.EndOfStreamIndex = DataToStream.Num();
-			
-			const auto N = FMath::Max(CurrentIndex + ChunkSize, DataToStream.Num() - 1);
-			ChunkToSend.DataSlice.SetNum(N+1);
-			for (int32 i = 0; i < N; i++)
+			auto* Channel =  OwningPlayerController->NetConnection->FindActorChannelRef(this);
+			while ( Channel->NumOutRec < (RELIABLE_BUFFER/2) && (CurrentStream->CurrentIndex < CurrentStream->DataToStream.Num()))
 			{
-				ChunkToSend.DataSlice[i] = DataToStream[CurrentIndex + i];
+				FVoxelStreamChunk ChunkToSend;
+				ChunkToSend.StartIndex = CurrentStream->CurrentIndex;
+				ChunkToSend.EndOfStreamIndex = CurrentStream->DataToStream.Num();
+			
+				const auto N = FMath::Max(CurrentStream->CurrentIndex + ChunkSize, CurrentStream->DataToStream.Num() - 1);
+				ChunkToSend.DataSlice.SetNum(N+1);
+				for (int32 i = 0; i < N; i++)
+				{
+					ChunkToSend.DataSlice[i] = CurrentStream->DataToStream[CurrentStream->CurrentIndex + i];
+				}
+			
+				CurrentStream->CurrentIndex += N;
+			
+				SendVoxelStreamChunk(ChunkToSend);
 			}
-			
-			CurrentIndex += N;
-			
-			SendVoxelStreamChunk(ChunkToSend);
+
+			if (CurrentStream->CurrentIndex >= CurrentStream->DataToStream.Num())
+			{
+				
+			}
 		}
 	}
-	
-	// (CurrentIndex + MaxBytesPerStreamChunk < DataToStream.Num() &&
-	
-	
-		// while (ChunksSent < ChunksToSend && Channel->NumOutRec < (RELIABLE_BUFFER / 2))
-		// {
-		// 	ChunkBuffer.Reset();
-		// 	const int32 StartIndex = ChunksSent * MAXCHUNKSIZE;
-		// 	const int32 NumElements = FMath::Min(MAXCHUNKSIZE, Data.Num() - StartIndex);
-		//
-		// 	check(NumElements > 0 && (StartIndex + NumElements - 1) < DataToStream.Num());
-		// 	ChunkBuffer.Append(DataToStream.GetData() + StartIndex, NumElements);
-		//
-		// 	// Send a reliable Client RPC with the subarray data here
-		// 	ClientReceiveData(ChunkBuffer);
-		// 	ChunksSent++;
-		// }
+	else
+	{
+		auto NewStream = FVoxelStreamData();
+		if (StreamsQueue.Dequeue(NewStream))
+		{
+			CurrentStream = &NewStream;
+		}
+		else
+		{
+			CurrentStream = nullptr;
+		}
+	}
 	
 }
 
