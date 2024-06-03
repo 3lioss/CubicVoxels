@@ -2,6 +2,7 @@
 #include "VoxelDataStreamer.h"
 #include "GameFramework/PlayerController.h"
 #include "CoreMinimal.h"
+#include "VoxelStreamInterpretationInterface.h"
 #include "Engine/ActorChannel.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -53,15 +54,15 @@ void AVoxelDataStreamer::SendVoxelStreamChunk_Implementation(FVoxelStreamChunk D
 void AVoxelDataStreamer::CallEndFunctionOnClient_Implementation(int32 StreamOwner, FName StreamType)
 {
 		
-	// TArray<AActor*> OutActors;
-	// UGameplayStatics::GetAllActorsOfClass(GetWorld(), , OutActors);
-	//  
-	// // OutActors contains all BP and C++ actors that are or inherit from AMyInterfaceActor
-	// for (AActor* CurrentActor : OutActors)
-	// {
-	// 	// Each CurrentActor calls its own MyFunction implementation
-	// 	UE_LOG(LogTemp, Log, TEXT("%s : %s"), *CurrentActor->GetName(), *IMyInterface::Execute_MyFunction(Cast<AMyInterfaceActor>(CurrentActor)));
-	// }
+	TArray<AActor*> OutActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), UVoxelStreamInterpretationInterface::StaticClass() , OutActors);
+	 
+	// OutActors contains all BP and C++ actors that are or inherit from AMyInterfaceActor
+	for (AActor* CurrentActor : OutActors)
+	{
+		if (CurrentActor->GetUniqueID() == StreamOwner)
+		Cast<IVoxelStreamInterpretationInterface>(CurrentActor)->InterpretVoxelStream(StreamOwner, StreamType);
+	}
 }
 
 // Called every frame
