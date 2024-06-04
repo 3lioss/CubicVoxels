@@ -5,18 +5,16 @@
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
 #include "VoxelStructs.h"
-#include "VoxelWorldDataSaveGame.generated.h"
+#include "RegionDataSaveGame.generated.h"
 
 
 
 UCLASS()
-class CUBICVOXELS_API UVoxelWorldDataSaveGame : public USaveGame
+class CUBICVOXELS_API URegionDataSaveGame : public USaveGame
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(VisibleAnywhere)
-	TArray<FVoxelStack> ChunkData;
 
 	UPROPERTY(VisibleAnywhere)
 	TMap<FIntVector, FChunkData> RegionData;

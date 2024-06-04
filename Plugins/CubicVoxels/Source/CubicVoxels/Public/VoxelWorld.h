@@ -5,13 +5,13 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "VoxelStructs.h"
-#include "VoxelChunkThreadingUtilities.h"
-#include "FVoxelThread.h"
-#include "VoxelWorldDataSaveGame.h"
-#include "BasePluginValues.h"
+#include "ReplicationStructs.h"
+#include "ThreadedWorldGeneration/FVoxelWorldGenerationRunnable.h"
+#include "Serialization/VoxelWorldGlobalDataSaveGame.h"
+#include "VoxelDataStreamer.h"
 #include "VoxelWorld.generated.h"
 
-class APhysicalChunk;
+class AChunk;
 class UProceduralMeshComponent; 
 
 enum class EChunkState;
@@ -20,139 +20,148 @@ UCLASS()
 class AVoxelWorld : public AActor
 {
 	GENERATED_BODY()
+
+	friend AVoxelDataStreamer;
+public:
+	//TODO: remove this
+	UFUNCTION(BlueprintCallable)
+	void TestWorldSerialization();
 	
-public:	
 	// Sets default values for this actor's properties
 	AVoxelWorld();
 
-	int32 DefaultViewDistance;
-	int32 FarViewDistance;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool IsEnabled; 
 
-	TObjectPtr<USceneComponent> RootComponent;
+	UPROPERTY(EditAnywhere)
+	EVoxelWorldNetworkMode NetworkMode;
 
-	void IterateChunkLoading(FVector PlayerPosition);
-	void IterateChunkMeshing();
-	void IterateChunkUnloading(FVector PlayerPosition);
+	//Chunk loading distance parameters //TODO: Make it mutable at runtime
+	int32 ViewDistance;
+	int32 VerticalViewDistance;
 
+	//Table that links voxel types with their materials
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	class UDataTable* VoxelPhysicalCharacteristicsTable;
 
+	//Pointer to the function that generates the terrain procedurally
 	FVoxel (*WorldGenerationFunction) (FVector);
 
-	FVoxelThread* WorldGenerationThread;
+	//The VoxelWorld may manage multiple players in mutiplayer
+	//It will generate the world around each managed player
+	//On the client there will generally be only one managed player, on the server every player is generally managed
+	//Each managed player has its own assigned thread to create the world around him
+	//All the data needed to manage a player is contained in a struct linked to the player by the following map
+	TMap<TObjectPtr<APlayerController>, FVoxelWorldManagedPlayerData> ManagedPlayerDataMap;
 
+	//Name of the folder where the world saved data is saved
+	UPROPERTY(EditAnywhere)
+	FString WorldName;
+
+	TArray<uint8> GetSerializedWorldData();
+	
+	//Functions to access chunk data
 	bool IsChunkLoaded(FIntVector ChunkLocation);
 	TMap<FIntVector, FChunkData>* GetRegionSavedData(FIntVector RegionLocation);
-	TObjectPtr<APhysicalChunk> GetChunkAt(FIntVector ChunkLocation);
+	TObjectPtr<AChunk> GetChunkAt(FIntVector ChunkLocation);
 	void SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData);
-	
+
+	//Blueprint functions to edit and save the world
+	UFUNCTION(BlueprintCallable)
 	void SaveVoxelWorld();
 
+	UFUNCTION(BlueprintCallable)
+	void DestroyBlockAt(FVector BlockWorldLocation); 
+
+	UFUNCTION(BlueprintCallable)
+	void SetBlockAt(FVector BlockWorldLocation, FVoxel Block);
+
+	UFUNCTION(BlueprintCallable)
+	FVoxel GetBlockAt(FVector BlockWorldLocation);
+
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	void DownloadWorldSave();
+
+	//Function to add a player to be managed by the VoxelWorld
+	UFUNCTION(BlueprintCallable)
+	void AddManagedPlayer(APlayerController* PlayerToAdd);
+	
+	
 private:
+	//Each player is assigned a unique Id to be identified by on other threads
+	//This restricts the risk of accessing a PlayerController outside the game thread
+	UPROPERTY()
+	TMap<APlayerController*, int32> PlayerIDs;
+	
+	//Only used on the server to set a fixed number of threads to handle players
+	int32 NumberOfWorldGenerationThreads;
+	int32 CurrentGenerationThreadIndex;
+	TArray<FVoxelWorldGenerationRunnable*> WorldGenerationThreads;
+
+	//Main functions called on actor ticking
+	void UpdatePlayerPositionsOnThreads();
+	void IterateChunkCreationNearPlayers();
+	void IterateGeneratedChunkLoadingAndSidesGeneration();
+	void IterateChunkMeshing();
+	void IterateChunkUnloading();
 
 	TMap<FIntVector, EChunkState> ChunkStates;
-	TMap<FIntVector, TObjectPtr<APhysicalChunk>> ChunkActorsMap;
+	TMap<FIntVector, TObjectPtr<AChunk>> ChunkActorsMap;
 	TSet<FIntVector> ChunksToSave;
 	TSet<FIntVector> RegionsToSave;
 
-	TMap<FIntVector, TMap<FIntVector, FChunkData>> LoadedRegions; //Map of all the regions that are currently loaded in memory
+	void CreateChunkAt(FIntVector ChunkLocation, TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* OrdersQueuePtr);
+
+	//Map of all the regions that are currently loaded in memory, in each region the chunks are located in absolute chunk coordinates
+	TMap<FIntVector, TMap<FIntVector, FChunkData>> LoadedRegions; 
 
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc> GeneratedChunksToLoadInGame;
-	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc> ChunkQuadsToLoad;
-
-	TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Spsc>* ChunkThreadedWorkOrdersQueuePtr;
-	TQueue<TTuple<FIntVector, float>, EQueueMode::Spsc>* PlayerPositionUpdatesPtr;
+	TQueue< FChunkGeometry, EQueueMode::Mpsc> ChunkQuadsToLoad;
 
 	FIntVector GetRegionOfChunk(FIntVector ChunkCoordinates);
 
 	void RegisterChunkForSaving(FIntVector3 ChunkLocation);
 
+	FCriticalSection PlayerPositionsUpdateOnThreadsMutex;
+
+	int32 DistanceToNearestPlayer(FIntVector ChunkLocation);
+	TObjectPtr<APlayerController> NearestPlayerToChunk(FIntVector ChunkLocation);
+
+	FString GetRegionName(FIntVector RegionLocation);
+
+	void ServerThreadsSetup(int32 NumberOfThreads);
+
+	//Functions and variables used for world download from server
+	//TMap<TObjectPtr<APlayerController>, FVoxelStreamManager> PlayerWorldDownloadingStreamMap;
+	void OverwriteSaveWithSerializedData(TArray<uint8> Data);
+
+	int32 MaxBytesPerStreamChunk;
+	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	virtual void BeginDestroy() override;
-
+	
 	TArray<TSet<FIntVector>> ViewLayers;
-	TArray<TTuple<FIntVector, TSharedPtr<FChunkData>>> OrderedGeneratedChunksToLoadInGame;
-	TArray<FIntVector> ChunksToUnloadOnGivenTick;
-	TQueue<TTuple<FIntVector, TMap<FIntVector4, FVoxel>>> ChunkQuadsToBeLoadedLater;
+	TArray<TTuple<FIntVector, TSharedPtr<FChunkData>>> GeneratedChunksToLoadByDistanceToNearestPlayer;
+	TMap<FIntVector, uint32> NumbersOfPlayerOutsideRangeOfChunkMap;
+	TQueue<FChunkGeometry> ChunkGeometryToBeLoadedLater;
 	
 	int32 OneNorm(FIntVector Vector) const;
 	
 	static FVoxel DefaultGenerateBlockAt(FVector Position);
-	bool IsInWorldGenerationBounds(FIntVector ChunkPosition);	//return true at a given coordinate if that coordinate is inside the generation bounds of the voxel world
+
+
+	//SaveGame that stores all the global data of the VoxelWorld actor
+	//That is the data which is not owned by a particular region
+	UPROPERTY()
+	UVoxelWorldGlobalDataSaveGame* WorldSavedInfo;
+	
 
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override; 
 
 };
-/*
-class FVoxelChunkInsidesCookingAsyncTask : public FNonAbandonableTask //Asynchronous task that sets up the blocks data of a chunk and generates its insides' quad data
-{
-	FIntVector TaskCoordinates;
-	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* TaskPreCookedChunksToLoadBlockDataPtr;
-	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* TaskChunkQuadsToLoadPtr;
-	int32 TaskChunkSize;
-	float TaskVoxelSize;
-	FVoxel (*TaskGenerationFunction) (FVector);
- 
-public:
-	//Default constructor
-	FVoxelChunkInsidesCookingAsyncTask(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockDataPtr, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoadPtr, const int32 InputChunkSize, float VoxelSize, FVoxel (*GenerationFunction) (FVector))
-	{
-		this->TaskCoordinates = Coordinates;
-		this->TaskPreCookedChunksToLoadBlockDataPtr = PreCookedChunksToLoadBlockDataPtr;
-		this->TaskChunkQuadsToLoadPtr = ChunkQuadsToLoadPtr;
-		this->TaskChunkSize = InputChunkSize;
-		this->TaskVoxelSize = VoxelSize;
-		this->TaskGenerationFunction = GenerationFunction;
-		
-	}
- 
-	//This function is needed from the API of the engine. 
-	//My guess is that it provides necessary information
-	//about the thread that we occupy and the progress of our task
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(PrimeCalculationAsyncTask, STATGROUP_ThreadPoolAsyncTasks);
-	}
- 
-	//This function is executed when we tell our task to execute
-	void DoWork()
-	{
-		LoadChunkInsides( TaskCoordinates,TaskPreCookedChunksToLoadBlockDataPtr, TaskChunkQuadsToLoadPtr, TaskChunkSize, TaskVoxelSize, TaskGenerationFunction);
-	}
-};*/
 
-class FVoxelChunkSideCookingAsyncTask : public FNonAbandonableTask //Asynchronous task that generates a chunk's inside's quad data
-{
-	FChunkData* TaskChunkToContinueLoadingBlocks;
-	FChunkData* TaskNeighbourChunkBlocks;
-	int32 TaskDirectionIndex;
-	TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* TaskChunkQuadsToLoad;
-	FIntVector TaskChunkToContinueLoadingCoordinates;
- 
-public:
-	//Default constructor
-	FVoxelChunkSideCookingAsyncTask(FChunkData* ChunkToContinueLoadingBlocks, FChunkData* TaskNeighbourChunkBlocks, int32 DirectionIndex, TQueue< TTuple<FIntVector, TMap<FIntVector4, FVoxel>>, EQueueMode::Mpsc>* ChunkQuadsToLoad, FIntVector ChunkToContinueLoadingCoordinates)
-	{
-		this->TaskChunkToContinueLoadingBlocks = ChunkToContinueLoadingBlocks;
-		this->TaskNeighbourChunkBlocks = TaskNeighbourChunkBlocks;
-		this->TaskDirectionIndex = DirectionIndex;
-		this->TaskChunkQuadsToLoad = ChunkQuadsToLoad;
-		this->TaskChunkToContinueLoadingCoordinates = ChunkToContinueLoadingCoordinates;
-	}
- 
-	//This function is needed from the API of the engine. 
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(PrimeCalculationAsyncTask, STATGROUP_ThreadPoolAsyncTasks);
-	}
- 
-	//This function is executed when we tell our task to execute
-	void DoWork()
-	{
-		ComputeChunkSideFacesFromData( TaskChunkToContinueLoadingBlocks, TaskNeighbourChunkBlocks, TaskDirectionIndex, TaskChunkQuadsToLoad, ChunkSize,  TaskChunkToContinueLoadingCoordinates);
-	}
-};
+

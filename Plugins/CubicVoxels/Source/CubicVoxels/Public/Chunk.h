@@ -5,55 +5,71 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "VoxelWorld.h"
-#include "PhysicalChunk.generated.h"
+#include "Chunk.generated.h"
 
 class UProceduralMeshComponent; 
 struct FMeshData;
 
 UCLASS()
-class CUBICVOXELS_API APhysicalChunk : public AActor
+class CUBICVOXELS_API AChunk : public AActor
 {
 	GENERATED_BODY()
 	
 public:	
 	// Sets default values for this actor's properties
-	APhysicalChunk();
+	AChunk();
 
+	//Functions to set up the chunk
 	void LoadBlocks(TSharedPtr<FChunkData> InputVoxelData);
 	void AddQuads(TMap<FIntVector4, FVoxel> VoxelQuadsToAdd);
 	bool HasQuadAt(FIntVector4 QuadLocation);
 	void RemoveQuad(FIntVector4 Quad);
-	
-	void RenderChunk(float VoxelSize); //Function that sets up the procedural mesh component with the data contained in ChunkQuads
-	
+	void RenderChunk(float VoxelSize);
+
+	//Functions to modify the chunk
 	void DestroyBlockAt(FVector BlockWorldLocation);
 	void SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType);
+	FVoxel GetBlockAt(FVector BlockWorldLocation);
 
+	//Values set by the VoxelWorld
+	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AVoxelWorld> OwningWorld;
+	
 	FIntVector Location;
 	bool IsLoaded;
 
+	UPROPERTY()
 	class UDataTable* VoxelCharacteristicsData;
-	
+
+	UFUNCTION(BlueprintCallable)
+	void ShowFaceGenerationStatus();
+
+	UFUNCTION(Client, Reliable)
+	void AddSerializedGeometryOnClient(const TArray<uint8>& SerializedGeometry);
+		
 protected:
+	UStaticMeshComponent* Cube;
+	
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	TMap<FIntVector4, FVoxel> VoxelQuads; //A map that associates to a coordinate and a direction the voxel at that location if it should have a face in the given direction
+	//A map that associates to a coordinate and a direction the voxel at that location if it should have a face in the given direction
+	TMap<FIntVector4, FVoxel> VoxelQuads;
 
 	static bool IsInsideChunk(FIntVector BlockLocation);
+
 	
-	void RemoveBlockFromBlockData(FIntVector3 BlockLocation);
-	void SetBlockInBlockData(FIntVector3 BlockLocation, FVoxel BlockVoxel);
 
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	
-	TSharedPtr<FChunkData> BlocksData;
-	TObjectPtr<UProceduralMeshComponent> Mesh;
-	TObjectPtr<UStaticMeshComponent> LoadingCube;
 
-public:
-	void SaveChunkDataToDisk(); //Temporary, in final system we should rather save regions of chunks
+	bool IsInsideGeometryLoaded;
+	bool IsSideGeometryLoaded[6];
+	
+	TSharedPtr<FChunkData> BlocksDataPtr;
+	
+	UPROPERTY()
+	TObjectPtr<UProceduralMeshComponent> Mesh;
+	
 };
