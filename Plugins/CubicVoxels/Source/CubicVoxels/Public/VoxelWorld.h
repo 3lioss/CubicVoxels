@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "VoxelStructs.h"
-#include "ReplicationStructs.h"
+#include "SerializationAndNetworking/ReplicationStructs.h"
 #include "ThreadedWorldGeneration/FVoxelWorldGenerationRunnable.h"
-#include "Serialization/VoxelWorldGlobalDataSaveGame.h"
-#include "VoxelDataStreamer.h"
+#include "SerializationAndNetworking/VoxelStreamInterpretationInterface.h"
+#include "SerializationAndNetworking/VoxelWorldGlobalDataSaveGame.h"
 #include "VoxelWorld.generated.h"
 
 class AChunk;
@@ -17,7 +17,7 @@ class UProceduralMeshComponent;
 enum class EChunkState;
 
 UCLASS()
-class AVoxelWorld : public AActor
+class AVoxelWorld : public AActor, public IVoxelStreamInterpretationInterface
 {
 	GENERATED_BODY()
 
@@ -25,7 +25,7 @@ class AVoxelWorld : public AActor
 public:
 	//TODO: remove this
 	UFUNCTION(BlueprintCallable)
-	void TestWorldSerialization();
+	void TestingFunction(APlayerController* PlayerController);
 	
 	// Sets default values for this actor's properties
 	AVoxelWorld();
@@ -85,7 +85,8 @@ public:
 	//Function to add a player to be managed by the VoxelWorld
 	UFUNCTION(BlueprintCallable)
 	void AddManagedPlayer(APlayerController* PlayerToAdd);
-	
+
+	virtual void InterpretVoxelStream(int32 StreamOwner, FName StreamType, TArray<uint8> VoxelStream) override; 
 	
 private:
 	//Each player is assigned a unique Id to be identified by on other threads

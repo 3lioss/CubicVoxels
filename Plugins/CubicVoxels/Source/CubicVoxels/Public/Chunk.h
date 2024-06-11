@@ -11,7 +11,7 @@ class UProceduralMeshComponent;
 struct FMeshData;
 
 UCLASS()
-class CUBICVOXELS_API AChunk : public AActor
+class CUBICVOXELS_API AChunk : public AActor, public IVoxelStreamInterpretationInterface
 {
 	GENERATED_BODY()
 	
@@ -44,9 +44,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void ShowFaceGenerationStatus();
 
-	UFUNCTION(Client, Reliable)
-	void AddSerializedGeometryOnClient(const TArray<uint8>& SerializedGeometry);
-		
+	virtual void InterpretVoxelStream(int32 StreamOwner, FName StreamType, TArray<uint8> VoxelStream) override;
+
 protected:
 	UStaticMeshComponent* Cube;
 	

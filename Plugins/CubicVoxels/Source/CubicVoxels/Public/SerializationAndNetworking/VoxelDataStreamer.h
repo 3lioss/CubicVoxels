@@ -18,27 +18,33 @@ public:
 	// Sets default values for this actor's properties
 	AVoxelDataStreamer();
 
-	//void ActivateStreamer(const TArray<uint8>& DataToSend, const TFunction<void(TArray<uint8>)>& FunctionToCallOnDataPtr, int32 MaxBytesPerStreamChunk);
-	void AddDataToStream(FVoxelStreamData StreamData);
+	void AddDataToStream(const FVoxelStreamData* StreamDataPtr);
 	
 	UPROPERTY()
 	APlayerController* OwningPlayerController;
+
+	
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	TQueue<FVoxelStreamData> StreamsQueue;
+	TArray<const FVoxelStreamData*> StreamsToProcess;
 
 	UFUNCTION(Client, Reliable)
 	void SendVoxelStreamChunk(FVoxelStreamChunk Data);
 
 	TArray<uint8> SerializedDataAccumulator;
 
-	FVoxelStreamData* CurrentStream;
+	int32 CurrentIndex;
+
+	int32 StreamMaxChunkSize;
 
 	UFUNCTION(Client, Reliable)
 	void CallEndFunctionOnClient(int32 StreamOwner, FName StreamType);
+
+private:
+	const FVoxelStreamData* CurrentStreamPtr;
 
 public:
 	// Called every frame

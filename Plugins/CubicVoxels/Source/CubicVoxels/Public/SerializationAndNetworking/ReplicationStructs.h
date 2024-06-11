@@ -21,9 +21,9 @@ struct FVoxelStreamChunk
 {
 	GENERATED_USTRUCT_BODY()
 	
-	uint32 StartIndex;
+	int32 StartIndex;
 	TArray<uint8> DataSlice;
-	uint32 EndOfStreamIndex;
+	int32 EndOfStreamIndex;
 };
 
 struct FVoxelStreamManager
@@ -34,28 +34,24 @@ struct FVoxelStreamManager
 
 struct FVoxelStreamData
 {
+
 	FName StreamType;
-	int32 StreamOwner; //To refer to an actor unambiguously in multiplayer, we use its global ID managed by the engine
-	TArray<uint8> DataToStream;
-	int32 CurrentIndex;
-	int32 ChunkSize;
-
-	FVoxelStreamData()
-	{
-		CurrentIndex = 0;
-		ChunkSize = 32000;
-		StreamType = FName();
-	}
-
-	FVoxelStreamData(int32 StreamSender, FName TypeOfStream ,TArray<uint8> Data, int32 StreamChunkSize)
+	int32  StreamOwner; //To refer to an actor unambiguously in multiplayer, we use its global ID managed by the engine
+	
+	FVoxelStreamData(int32 StreamSender, FName TypeOfStream ,TArray<uint8> Data)
 	{
 		StreamOwner = StreamSender;
 		StreamType = TypeOfStream;
-		CurrentIndex = 0;
 		DataToStream = Data;
-		ChunkSize = StreamChunkSize;
 		
-		ChunkSize = 32000;
 	}
+
+	const TArray<uint8>& GetStreamData() const 
+	{
+		return DataToStream;
+	}
+
+private:
+	TArray<uint8> DataToStream;
 };
 

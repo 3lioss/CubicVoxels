@@ -4,17 +4,37 @@
 #include "VoxelWorld.h"
 #include "Enums.h"
 #include "ThreadedWorldGeneration/FVoxelWorldGenerationRunnable.h"
-#include "Serialization/RegionDataSaveGame.h"
 #include "Kismet/GameplayStatics.h"
 #include "Chunk.h"
-#include "VoxelDataStreamer.h"
-#include "Serialization/VoxelWorldGlobalDataSaveGame.h"
-#include "Serialization/VoxelWorldNetworkSerializationSaveGame.h"
+#include "SerializationAndNetworking/VoxelDataStreamer.h"
+#include "SerializationAndNetworking/VoxelWorldNetworkSerializationSaveGame.h"
+#include "SerializationAndNetworking/VoxelWorldGlobalDataSaveGame.h"
+#include "SerializationAndNetworking/RegionDataSaveGame.h"
 
-void AVoxelWorld::TestWorldSerialization()
+
+void AVoxelWorld::TestingFunction(APlayerController* PlayerController)
 {
-	auto a = GetSerializedWorldData();
-	UE_LOG(LogTemp, Warning, TEXT("Hello %d"), a.Num())
+	if (HasAuthority())
+	{
+		//Test code
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = GetInstigator();
+
+		FVector SpawnLocation = FVector(0.0f, 0.0f, 0.0f);
+		FRotator SpawnRotation = FRotator(0.0f, 0.0f, 0.0f);
+
+		auto TestStreamer = GetWorld()->SpawnActor<AVoxelDataStreamer>(AVoxelDataStreamer::StaticClass(), SpawnLocation, SpawnRotation, SpawnParams);
+		TestStreamer->SetOwner(PlayerController);
+		TestStreamer->OwningPlayerController = PlayerController;
+		
+		UE_LOG(LogTemp, Display, TEXT("In VoxelWorld: %hs"), IsValid(TestStreamer->OwningPlayerController) ? "Player controller valid" : "Player controller not valid")
+	
+		const FVoxelStreamData* TestStreamPtr = new FVoxelStreamData( NetTag, "test" ,TArray<uint8>({2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37}));
+		
+		TestStreamer->AddDataToStream(TestStreamPtr);
+		
+	}
 }
 
 // Sets default values
@@ -580,7 +600,7 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 		}
 		else
 		{
-			//TODO: handle this case
+			//TODO: think about this
 		}
 		
 	}
@@ -665,7 +685,6 @@ FVoxel AVoxelWorld::GetBlockAt(FVector BlockWorldLocation)
 			}
 			else
 			{
-
 				auto Result = FVoxel();
 				Result.VoxelType = "Null";
 				return Result;
@@ -673,11 +692,9 @@ FVoxel AVoxelWorld::GetBlockAt(FVector BlockWorldLocation)
 		}
 		else
 		{
-			
 			auto Result = FVoxel();
 			Result.VoxelType = "Null";
 			return Result;
-			
 		}
 	}
 
@@ -738,6 +755,23 @@ void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 	PlayerIDs.Add(PlayerToAdd, PlayerIndex);
 	
 }
+
+void AVoxelWorld::InterpretVoxelStream(int32 StreamOwner, FName StreamType, TArray<uint8> VoxelStream)
+{
+	if (StreamType == "WorldSave")
+	{
+		OverwriteSaveWithSerializedData(VoxelStream);
+	}
+
+	if (StreamType == "test")
+	{
+		for (int32 i = 0; i < VoxelStream.Num(); i++)
+		{
+			UE_LOG(LogTemp, Display, TEXT("END/ The bit at %d is at %d"), i, VoxelStream[i])
+		}
+	}
+}
+
 
 FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
 {
@@ -940,7 +974,6 @@ void AVoxelWorld::ServerThreadsSetup(int32 NumberOfThreads)
 
 void AVoxelWorld::DownloadWorldSave_Implementation()
 {
-	
 	APlayerController* SendingPlayerController = Cast<APlayerController>(GetOwner());
 
 	if (SendingPlayerController)
@@ -950,8 +983,8 @@ void AVoxelWorld::DownloadWorldSave_Implementation()
 		StreamManager->SetOwner(SendingPlayerController);
 		TFunction<void(TArray<uint8>)> SaveFileOverwriteFunction = [this](const TArray<uint8>& Data){ return OverwriteSaveWithSerializedData(Data); };
 		
-		StreamManager->AddDataToStream(FVoxelStreamData(GetUniqueID(), FName("WorldSaveStream"), GetSerializedWorldData(), 32000));
-		
+		auto WorldDownloadStream = FVoxelStreamData(GetUniqueID(), FName("WorldSaveStream"), GetSerializedWorldData());
+		StreamManager->AddDataToStream(&WorldDownloadStream);
 	}
 }
 
@@ -990,9 +1023,7 @@ void AVoxelWorld::OverwriteSaveWithSerializedData(TArray<uint8> Data)
 void AVoxelWorld::BeginPlay()
 {
 	Super::BeginPlay();
-
-
-
+	
 	//Creates the main world save file
 	 if (UGameplayStatics::DoesSaveGameExist(WorldName + "\\WorldSaveData", 0))
 	 {
@@ -1011,14 +1042,13 @@ void AVoxelWorld::BeginPlay()
 		WorldSavedInfo = Cast<UVoxelWorldGlobalDataSaveGame>(UGameplayStatics::CreateSaveGameObject(UVoxelWorldGlobalDataSaveGame::StaticClass()));
 	}
 
-	//If the game is singleplayer, the player around which the world is generated is automatically registered
+	//If the game is single-player, the player around which the world is generated is automatically registered
 	//On a server, players must be added as they join
 	if (NetworkMode == EVoxelWorldNetworkMode::ClientOnly)
 	{
 		AddManagedPlayer(GetWorld()->GetFirstPlayerController());
 		
 	}
-
 }
 
 void AVoxelWorld::BeginDestroy()

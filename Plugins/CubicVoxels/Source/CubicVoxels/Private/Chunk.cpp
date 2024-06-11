@@ -22,14 +22,14 @@ AChunk::AChunk()
 
 	VoxelCharacteristicsData = ConstructorHelpers::FObjectFinder<UDataTable>(TEXT("/Script/Engine.DataTable'/CubicVoxels/DefaultVoxelCharacteistics.DefaultVoxelCharacteistics'")).Object;
 
-	// Create a static mesh component
+	/*// Create a static mesh component
 	Cube = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Cube"));
 	// Load the Cube mesh
 	UStaticMesh* CubeMesh = ConstructorHelpers::FObjectFinder<UStaticMesh>(TEXT("StaticMesh'/Engine/BasicShapes/Cube.Cube'")).Object;
 	
 	// Set the component's mesh
 	Cube->SetStaticMesh(CubeMesh);
-	Cube->SetupAttachment(Mesh);
+	Cube->SetupAttachment(Mesh);*/
 
 }
 
@@ -123,6 +123,14 @@ void AChunk::ShowFaceGenerationStatus()
 	}
 }
 
+void AChunk::InterpretVoxelStream(int32 StreamOwner, FName StreamType, TArray<uint8> VoxelStream)
+{
+	if (StreamType == "GeometryReplication")
+	{
+		
+	}
+}
+
 void AChunk::BeginPlay()
 {
 	Super::BeginPlay();
@@ -131,11 +139,6 @@ void AChunk::BeginPlay()
 bool AChunk::IsInsideChunk(FIntVector BlockLocation)
 {
 	return (BlockLocation.X < ChunkSize && BlockLocation.Y < ChunkSize && BlockLocation.Z < ChunkSize && BlockLocation.X >= 0 && BlockLocation.Y >= 0 && BlockLocation.Z >= 0);
-}
-
-void AChunk::AddSerializedGeometryOnClient_Implementation(const TArray<uint8>& SerializedGeometry)
-{
-	//TODO: Complete this part of code
 }
 
 void AChunk::Tick(float DeltaTime)
