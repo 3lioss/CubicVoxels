@@ -31,7 +31,7 @@ void AVoxelDataStreamer::AddDataToStream(const FVoxelStreamData* StreamDataPtr, 
 {
 	StreamDataPtr->StreamID = LastAssignedStreamID + 1;
 	LastAssignedStreamID += 1;
-	StreamsToProcess.Add(StreamDataPtr);
+	StreamsToProcess.Add(StreamDataPtr); 
 	AssignIDOnClient(StreamDataPtr->StreamID, StreamOriginActor);
 }
 
@@ -81,6 +81,12 @@ void AVoxelDataStreamer::CallEndFunctionOnClient_Implementation(int32 StreamID, 
 void AVoxelDataStreamer::AssignIDOnClient_Implementation(int32 ID, AActor* StreamOriginActor)
 {
 	IDToActorMap.Add(ID, StreamOriginActor);
+	NotifyServerThatIdHasBeenMapped(ID);
+}
+
+void AVoxelDataStreamer::NotifyServerThatIdHasBeenMapped_Implementation(int32 ID)
+{
+	ValidIDs.Add(ID);
 }
 
 // Called every frame
@@ -124,30 +130,43 @@ void AVoxelDataStreamer::Tick(float DeltaTime)
 							UE_LOG(LogTemp, Display, TEXT("Calling end function"));
 							const auto a =  CurrentStreamPtr->StreamType;
 							CallEndFunctionOnClient(CurrentStreamPtr->StreamID, CurrentStreamPtr->StreamType);
+
+							ValidIDs.Remove(CurrentStreamPtr->StreamID);
 							delete CurrentStreamPtr;
 							CurrentStreamPtr = nullptr;
 							CurrentIndex = 0;
+							
 						}
 					}
 					
 				}
 				else
 				{
-					UE_LOG(LogTemp, Display, TEXT("Net channel not valid"));
+					UE_LOG(LogTemp, Error, TEXT("Net channel not valid"));
 				}
 			
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("The owning player controller ptr is not valid"));
+				UE_LOG(LogTemp, Error, TEXT("The owning player controller ptr is not valid"));
 			}
 		}
 		else
 		{
 			if (!StreamsToProcess.IsEmpty())
 			{
-				CurrentStreamPtr = StreamsToProcess[0];
-				StreamsToProcess.RemoveAt(0);
+				int32 i = 0;
+				while (i < StreamsToProcess.Num() && !ValidIDs.Find(StreamsToProcess[i]->StreamID))
+				{
+					i += 1;
+				}
+
+				if (i < StreamsToProcess.Num())
+				{
+					CurrentStreamPtr = StreamsToProcess[0];
+					StreamsToProcess.RemoveAt(0);
+				}
+				
 			}
 		}
 	}

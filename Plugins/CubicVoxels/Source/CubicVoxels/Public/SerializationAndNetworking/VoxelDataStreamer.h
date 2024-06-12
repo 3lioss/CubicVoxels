@@ -25,11 +25,11 @@ public:
 
 	
 
-protected:
+private:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	TArray<const FVoxelStreamData*> StreamsToProcess; //TODO: Replace by a TQueue
+	TArray<const FVoxelStreamData*> StreamsToProcess; 
 
 	UFUNCTION(Client, Reliable)
 	void SendVoxelStreamChunk(FVoxelStreamChunk Data);
@@ -46,13 +46,17 @@ protected:
 	UFUNCTION(Client, Reliable)
 	void AssignIDOnClient(int32 ID, AActor* StreamOriginActor);
 
-private:
+	UFUNCTION(Server, Reliable)
+	void NotifyServerThatIdHasBeenMapped(int32 ID);
+	
 	const FVoxelStreamData* CurrentStreamPtr;
 
 	int32 LastAssignedStreamID;
 
 	UPROPERTY()
-	TMap<int32, AActor*> IDToActorMap;
+	TMap<int32, AActor*> IDToActorMap; //Used only on the client, maps a stream ID to the actor that sent the stream
+
+	TSet<int32> ValidIDs; //Used only on the server,set of the streams chose ID has already been correctly set on the client
 
 public:
 	// Called every frame
