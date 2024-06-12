@@ -123,14 +123,6 @@ void AChunk::ShowFaceGenerationStatus()
 	}
 }
 
-void AChunk::InterpretVoxelStream(int32 StreamOwner, FName StreamType, TArray<uint8> VoxelStream)
-{
-	if (StreamType == "GeometryReplication")
-	{
-		
-	}
-}
-
 void AChunk::BeginPlay()
 {
 	Super::BeginPlay();

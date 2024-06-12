@@ -20,9 +20,14 @@ USTRUCT()
 struct FVoxelStreamChunk
 {
 	GENERATED_USTRUCT_BODY()
-	
+
+	UPROPERTY()
 	int32 StartIndex;
+
+	UPROPERTY()
 	TArray<uint8> DataSlice;
+
+	UPROPERTY()
 	int32 EndOfStreamIndex;
 };
 
@@ -36,11 +41,10 @@ struct FVoxelStreamData
 {
 
 	FName StreamType;
-	int32  StreamOwner; //To refer to an actor unambiguously in multiplayer, we use its global ID managed by the engine
+	mutable int32  StreamID; //Unique identifier that is assigned by the voxel data streamer
 	
-	FVoxelStreamData(int32 StreamSender, FName TypeOfStream ,TArray<uint8> Data)
+	FVoxelStreamData( FName TypeOfStream ,TArray<uint8> Data)
 	{
-		StreamOwner = StreamSender;
 		StreamType = TypeOfStream;
 		DataToStream = Data;
 		

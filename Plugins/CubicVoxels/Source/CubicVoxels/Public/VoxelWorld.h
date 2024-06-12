@@ -86,7 +86,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AddManagedPlayer(APlayerController* PlayerToAdd);
 
-	virtual void InterpretVoxelStream(int32 StreamOwner, FName StreamType, TArray<uint8> VoxelStream) override; 
+	virtual void InterpretVoxelStream(FName StreamType,const TArray<uint8>& VoxelStream) override; 
 	
 private:
 	//Each player is assigned a unique Id to be identified by on other threads

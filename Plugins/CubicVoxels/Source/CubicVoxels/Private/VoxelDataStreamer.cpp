@@ -23,11 +23,16 @@ AVoxelDataStreamer::AVoxelDataStreamer()
 	CurrentIndex = 0;
 
 	StreamMaxChunkSize = 10;
+
+	LastAssignedStreamID = -1;
 }
 
-void AVoxelDataStreamer::AddDataToStream(const FVoxelStreamData* StreamDataPtr)
+void AVoxelDataStreamer::AddDataToStream(const FVoxelStreamData* StreamDataPtr, AActor* StreamOriginActor)
 {
+	StreamDataPtr->StreamID = LastAssignedStreamID + 1;
+	LastAssignedStreamID += 1;
 	StreamsToProcess.Add(StreamDataPtr);
+	AssignIDOnClient(StreamDataPtr->StreamID, StreamOriginActor);
 }
 
 
@@ -42,7 +47,7 @@ void AVoxelDataStreamer::SendVoxelStreamChunk_Implementation(FVoxelStreamChunk D
 {
 	if (Data.StartIndex + Data.DataSlice.Num() >= Data.EndOfStreamIndex)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Invalid data chunk received while streaming world to client"))	
+		UE_LOG(LogTemp, Error, TEXT("Invalid data chunk received while streaming world to client at index %d"), Data.StartIndex)	
 	}
 	
 	if (SerializedDataAccumulator.Num() == 0)
@@ -57,24 +62,25 @@ void AVoxelDataStreamer::SendVoxelStreamChunk_Implementation(FVoxelStreamChunk D
 	
 }
 
-void AVoxelDataStreamer::CallEndFunctionOnClient_Implementation(int32 StreamOwner, FName StreamType)
+void AVoxelDataStreamer::CallEndFunctionOnClient_Implementation(int32 StreamID, FName StreamType)
 {
-		
-	TArray<AActor*> OutActors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AVoxelWorld::StaticClass() , OutActors);
-	 UE_LOG(LogTemp, Warning, TEXT("Getting all actors implementing the interface"))
-	 //OutActors contains all BP and C++ actors that are or inherit from AVoxelStreamInterpretationInterface
-	 for (AActor* CurrentActor : OutActors)
-	 {
-	 	UE_LOG(LogTemp, Warning, TEXT("Actor net tag: %d, target net tag: %d"), CurrentActor->NetTag, StreamOwner); 
-	 	if (CurrentActor->GetUniqueID() == StreamOwner)
-	 	{
-	 		UE_LOG(LogTemp, Warning, TEXT("Found target actor, launching interface method"))
-	 		Cast<IVoxelStreamInterpretationInterface>(CurrentActor)->InterpretVoxelStream(StreamOwner, StreamType, SerializedDataAccumulator);
-	 		SerializedDataAccumulator.Empty();
-	 		break;
-	 	}
-	 }
+	for (int32 i = 0; i < SerializedDataAccumulator.Num(); i++)
+	{
+		UE_LOG(LogTemp, Display, TEXT("The bit received at %d by the streamer is %d on the client"), i, SerializedDataAccumulator[i])
+	}
+	
+	auto StreamOwnerPtr = IDToActorMap.FindAndRemoveChecked(StreamID);
+	if (StreamOwnerPtr->Implements<UVoxelStreamInterpretationInterface>())
+	{
+		auto ActorToUseData = Cast<IVoxelStreamInterpretationInterface>(StreamOwnerPtr);
+		ActorToUseData->InterpretVoxelStream(StreamType, SerializedDataAccumulator);
+		SerializedDataAccumulator.Empty();
+	}
+}
+
+void AVoxelDataStreamer::AssignIDOnClient_Implementation(int32 ID, AActor* StreamOriginActor)
+{
+	IDToActorMap.Add(ID, StreamOriginActor);
 }
 
 // Called every frame
@@ -95,38 +101,33 @@ void AVoxelDataStreamer::Tick(float DeltaTime)
 					if (IsValid(Channel))
 					{
 						while ( Channel->NumOutRec < (RELIABLE_BUFFER/2) &&  (CurrentIndex < CurrentStreamPtr->GetStreamData().Num()))
-					{
+						{
 					
 						
-						FVoxelStreamChunk ChunkToSend;
-						ChunkToSend.StartIndex = CurrentIndex;
-						ChunkToSend.EndOfStreamIndex = CurrentStreamPtr->GetStreamData().Num();
-						const auto N = FMath::Min( StreamMaxChunkSize, CurrentStreamPtr->GetStreamData().Num() - CurrentIndex);
-						UE_LOG(LogTemp, Display, TEXT("Max index is the min of %d and %d"), StreamMaxChunkSize, CurrentStreamPtr->GetStreamData().Num() - CurrentIndex);
-						ChunkToSend.DataSlice.SetNum(N+1);
-						for (int32 i = 0; i < N; i++)
-						{
-							ChunkToSend.DataSlice[i] = CurrentStreamPtr->GetStreamData()[CurrentIndex + i];
+							FVoxelStreamChunk ChunkToSend;
+							ChunkToSend.StartIndex = CurrentIndex;
+							ChunkToSend.EndOfStreamIndex = CurrentStreamPtr->GetStreamData().Num();
+							const auto N = FMath::Min( StreamMaxChunkSize, CurrentStreamPtr->GetStreamData().Num() - CurrentIndex);
+							ChunkToSend.DataSlice.SetNum(N+1);
+							for (int32 i = 0; i < N; i++)
+							{
+								ChunkToSend.DataSlice[i] = CurrentStreamPtr->GetStreamData()[CurrentIndex + i];
+							}
+					
+							CurrentIndex += N;
+							SendVoxelStreamChunk(ChunkToSend);
+					
 						}
 					
-						CurrentIndex += N;
-						SendVoxelStreamChunk(ChunkToSend);
-					
-					}
-					
-					if (CurrentIndex >= CurrentStreamPtr->GetStreamData().Num())
-					{
-						UE_LOG(LogTemp, Display, TEXT("Calling end function"));
-						for (int32 i = 0; i < CurrentStreamPtr->GetStreamData().Num(); i++)
+						if (CurrentIndex >= CurrentStreamPtr->GetStreamData().Num())
 						{
-							UE_LOG(LogTemp, Display, TEXT("The bit received at %d by the streamer is %d on the client"), i, CurrentStreamPtr->GetStreamData()[i])
+							UE_LOG(LogTemp, Display, TEXT("Calling end function"));
+							const auto a =  CurrentStreamPtr->StreamType;
+							CallEndFunctionOnClient(CurrentStreamPtr->StreamID, CurrentStreamPtr->StreamType);
+							delete CurrentStreamPtr;
+							CurrentStreamPtr = nullptr;
+							CurrentIndex = 0;
 						}
-						UE_LOG(LogTemp, Warning, TEXT("The stream owner is %d"), CurrentStreamPtr->StreamOwner);
-						const auto a =  CurrentStreamPtr->StreamType;
-						CallEndFunctionOnClient(CurrentStreamPtr->StreamOwner, CurrentStreamPtr->StreamType);
-						CurrentStreamPtr = nullptr;
-						CurrentIndex = 0;
-					}
 					}
 					
 				}
@@ -151,4 +152,3 @@ void AVoxelDataStreamer::Tick(float DeltaTime)
 		}
 	}
 }
-

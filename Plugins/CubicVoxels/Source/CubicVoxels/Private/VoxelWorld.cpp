@@ -30,9 +30,9 @@ void AVoxelWorld::TestingFunction(APlayerController* PlayerController)
 		
 		UE_LOG(LogTemp, Display, TEXT("In VoxelWorld: %hs"), IsValid(TestStreamer->OwningPlayerController) ? "Player controller valid" : "Player controller not valid")
 	
-		const FVoxelStreamData* TestStreamPtr = new FVoxelStreamData( NetTag, "test" ,TArray<uint8>({2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37}));
+		const FVoxelStreamData* TestStreamPtr = new FVoxelStreamData( "test" ,TArray<uint8>({2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37}));
 		
-		TestStreamer->AddDataToStream(TestStreamPtr);
+		TestStreamer->AddDataToStream(TestStreamPtr, this);
 		
 	}
 }
@@ -756,7 +756,7 @@ void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 	
 }
 
-void AVoxelWorld::InterpretVoxelStream(int32 StreamOwner, FName StreamType, TArray<uint8> VoxelStream)
+void AVoxelWorld::InterpretVoxelStream(FName StreamType, const TArray<uint8>& VoxelStream)
 {
 	if (StreamType == "WorldSave")
 	{
@@ -983,8 +983,8 @@ void AVoxelWorld::DownloadWorldSave_Implementation()
 		StreamManager->SetOwner(SendingPlayerController);
 		TFunction<void(TArray<uint8>)> SaveFileOverwriteFunction = [this](const TArray<uint8>& Data){ return OverwriteSaveWithSerializedData(Data); };
 		
-		auto WorldDownloadStream = FVoxelStreamData(GetUniqueID(), FName("WorldSaveStream"), GetSerializedWorldData());
-		StreamManager->AddDataToStream(&WorldDownloadStream);
+		auto WorldDownloadStream = FVoxelStreamData( FName("WorldSaveStream"), GetSerializedWorldData());
+		StreamManager->AddDataToStream(&WorldDownloadStream, this);
 	}
 }
 
