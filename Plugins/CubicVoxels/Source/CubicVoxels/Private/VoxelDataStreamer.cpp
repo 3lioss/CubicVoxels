@@ -5,7 +5,6 @@
 #include "VoxelWorld.h"
 #include "SerializationAndNetworking/VoxelStreamInterpretationInterface.h"
 #include "Engine/ActorChannel.h"
-#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 AVoxelDataStreamer::AVoxelDataStreamer()

@@ -92,8 +92,11 @@ struct FVoxelStack
 	}
 };
 
+USTRUCT()
 struct FChunkGeometry
 {
+	GENERATED_USTRUCT_BODY()
+
 	FIntVector ChunkLocation;
 	
 	TMap<FIntVector4, FVoxel> Geometry; 

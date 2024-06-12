@@ -22,6 +22,6 @@ class CUBICVOXELS_API IVoxelStreamInterpretationInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-
-	virtual void InterpretVoxelStream( FName StreamType,const TArray<uint8>& VoxelStream) = 0;
+	//Function called on client to do something with the stream (deserialize it for instance)
+	virtual void InterpretVoxelStream( FName StreamType,const TArray<uint8>& VoxelStream) = 0; 
 };

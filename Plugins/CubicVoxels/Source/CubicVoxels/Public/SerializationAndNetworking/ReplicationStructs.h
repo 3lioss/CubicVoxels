@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "ThreadedWorldGeneration/FVoxelWorldGenerationRunnable.h"
-#include "Containers/Queue.h" 
+#include "Containers/Queue.h"
+#include "VoxelStructs.h"
 #include "ReplicationStructs.generated.h"
 
 class AVoxelDataStreamer;
@@ -14,6 +15,7 @@ struct FVoxelWorldManagedPlayerData
 	TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* ChunkSidesMeshingOrdersQueuePtr;
 
 	TObjectPtr<AVoxelDataStreamer> PlayerDataStreamer;
+
 };
 
 USTRUCT()
@@ -59,3 +61,15 @@ private:
 	TArray<uint8> DataToStream;
 };
 
+USTRUCT()
+struct FChunkReplicatedData
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	FChunkGeometry ChunkGeometry;
+
+	UPROPERTY()
+	FIntVector ChunkLocation;
+	
+};

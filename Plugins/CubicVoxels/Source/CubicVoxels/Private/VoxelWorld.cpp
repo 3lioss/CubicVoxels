@@ -128,8 +128,6 @@ void AVoxelWorld::IterateGeneratedChunkLoadingAndSidesGeneration()
 	for (int32 Index = 0; Index < GeneratedChunksToLoadByDistanceToNearestPlayer.Num(); Index++)
 	{
 		const TTuple<FIntVector, TSharedPtr<FChunkData>> DataToLoad = GeneratedChunksToLoadByDistanceToNearestPlayer[Index];
-		// if ( !( DataToLoad.Value->CompressedChunkData.Num() == 1 && DataToLoad.Value->CompressedChunkData[0].Voxel.VoxelType == "Air"))
-		// {
 		
 		//Spawn the chunk actor
 		const TObjectPtr<AChunk> RecentlyGeneratedChunk = GetWorld()->SpawnActor<AChunk>();
@@ -143,7 +141,10 @@ void AVoxelWorld::IterateGeneratedChunkLoadingAndSidesGeneration()
 		RecentlyGeneratedChunk->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
 			
 		ChunkStates.Add(DataToLoad.Key, EChunkState::Loaded);
-		ChunkActorsMap.Add(MakeTuple(DataToLoad.Key, RecentlyGeneratedChunk));          
+		ChunkActorsMap.Add(MakeTuple(DataToLoad.Key, RecentlyGeneratedChunk));
+
+		//Replicate the chunk
+		//TODO: Write code that serializes the chunk's geometry data and finds all players close enough to this chunk to stream it to them
 
 		//If any neighbouring chunk is loaded, compute asynchronously the chunk's corresponding side mesh data
 		const FIntVector Directions[6] = {
@@ -600,7 +601,7 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 		}
 		else
 		{
-			//TODO: think about this
+			UE_LOG(LogTemp, Error, TEXT("A chunk was marked as loaded but the world has no valid pointer to it"))
 		}
 		
 	}
@@ -769,6 +770,11 @@ void AVoxelWorld::InterpretVoxelStream(FName StreamType, const TArray<uint8>& Vo
 		{
 			UE_LOG(LogTemp, Display, TEXT("END/ The bit at %d is at %d"), i, VoxelStream[i])
 		}
+	}
+
+	if (StreamType == "Chunk replicated data")
+	{
+		//TODO: write code that deserializes this as a FChunkReplicatedData and feeds the data into the client chunk
 	}
 }
 
