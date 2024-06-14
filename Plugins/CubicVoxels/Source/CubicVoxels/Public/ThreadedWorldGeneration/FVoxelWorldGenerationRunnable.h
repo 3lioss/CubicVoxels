@@ -25,7 +25,7 @@ public:
 	//FIntVector PlayerRelativeLocation;
 	TMap<int32, FIntVector> ManagedPlayersPositionsMap;
 
-	
+	FRunnableThread* Thread = nullptr;
 
 private:
 	
@@ -34,6 +34,6 @@ private:
 	bool IsCloserToNearestPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B, const TMap<int32, FIntVector>& ManagedPlayersPositionsMapConstCopy);
 
 protected:
-	FRunnableThread* Thread = nullptr;
+	
 
 };

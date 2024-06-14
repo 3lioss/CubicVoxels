@@ -56,7 +56,6 @@ protected:
 
 	static bool IsInsideChunk(FIntVector BlockLocation);
 
-	
 
 public:	
 	// Called every frame

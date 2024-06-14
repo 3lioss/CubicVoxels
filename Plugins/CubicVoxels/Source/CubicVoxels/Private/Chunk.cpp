@@ -133,6 +133,8 @@ bool AChunk::IsInsideChunk(FIntVector BlockLocation)
 	return (BlockLocation.X < ChunkSize && BlockLocation.Y < ChunkSize && BlockLocation.Z < ChunkSize && BlockLocation.X >= 0 && BlockLocation.Y >= 0 && BlockLocation.Z >= 0);
 }
 
+
+
 void AChunk::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -196,6 +198,11 @@ void AChunk::RenderChunk(float VoxelSize)
 		}
 		
 		
+	}
+
+	if (!IsValid(Mesh))
+	{
+		UE_LOG(LogTemp, Error, TEXT("The procedural mesh component is not valid"))
 	}
 
 	Mesh->ClearAllMeshSections();

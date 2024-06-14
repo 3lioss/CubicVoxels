@@ -124,6 +124,7 @@ private:
 	void RegisterChunkForSaving(FIntVector3 ChunkLocation);
 
 	FCriticalSection PlayerPositionsUpdateOnThreadsMutex;
+	FCriticalSection ThreadShutdownMutex;
 
 	int32 DistanceToNearestPlayer(FIntVector ChunkLocation);
 	TObjectPtr<APlayerController> NearestPlayerToChunk(FIntVector ChunkLocation);
@@ -141,7 +142,7 @@ private:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	virtual void BeginDestroy() override;
+	virtual void EndPlay( const EEndPlayReason::Type EndPlayReason  ) override;
 	
 	TArray<TSet<FIntVector>> ViewLayers;
 	TArray<TTuple<FIntVector, TSharedPtr<FChunkData>>> GeneratedChunksToLoadByDistanceToNearestPlayer;
@@ -151,7 +152,6 @@ protected:
 	int32 OneNorm(FIntVector Vector) const;
 	
 	static FVoxel DefaultGenerateBlockAt(FVector Position);
-
 
 	//SaveGame that stores all the global data of the VoxelWorld actor
 	//That is the data which is not owned by a particular region

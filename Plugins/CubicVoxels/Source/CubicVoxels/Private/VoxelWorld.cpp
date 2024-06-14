@@ -1058,15 +1058,32 @@ void AVoxelWorld::BeginPlay()
 	}
 }
 
-void AVoxelWorld::BeginDestroy()
+void AVoxelWorld::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	Super::BeginDestroy();
+	Super::EndPlay(EndPlayReason);
+	
+	TSet<FVoxelWorldGenerationRunnable*> VoxelWorldGenerationRunnables;
 
 	for (const auto CurrentPair : ManagedPlayerDataMap )
-		if (CurrentPair.Value.PlayerWorldGenerationThread)
+	{
+		VoxelWorldGenerationRunnables.Add(CurrentPair.Value.PlayerWorldGenerationThread);
+		VoxelWorldGenerationRunnables.Add(CurrentPair.Value.PlayerChunkSidesGenerationThread);
+	}
+	
+	for (auto CurrentThread : VoxelWorldGenerationRunnables )
+	{
+		
+		ThreadShutdownMutex.Lock();
+		CurrentThread->StartShutdown();
+		bool IsThreadValid = CurrentThread->Thread != nullptr;
+		ThreadShutdownMutex.Unlock();
+		
+		if (IsThreadValid)
 		{
-			CurrentPair.Value.PlayerWorldGenerationThread->StartShutdown();
+			CurrentThread->Thread->WaitForCompletion();
 		}
+		
+	}
 }
 
 

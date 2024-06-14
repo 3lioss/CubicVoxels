@@ -4,10 +4,12 @@
 FVoxelWorldGenerationRunnable::FVoxelWorldGenerationRunnable()
 {
 	Thread = FRunnableThread::Create(this, TEXT("World generation Thread"), 0, TPri_Normal);
+
 }
 
 bool FVoxelWorldGenerationRunnable::Init() {
 	//PlayerRelativeLocation = FIntVector(0,0,0);
+	UE_LOG(LogTemp, Warning, TEXT("A thread has been created"))
 	return true;
 }
 
@@ -17,9 +19,10 @@ uint32 FVoxelWorldGenerationRunnable::Run() {
 		//Empty the queue used to communicate with the game thread into an array
 		//Sorted by distance to the players
 		FChunkThreadedWorkOrderBase CurrentOrder;
-		while (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder) )
+		while (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder) && !bShutdown)
 		{
 			OrderedChunkThreadedWorkOrders.Add(CurrentOrder);
+
 		}
 		
 		const TMap<int32, FIntVector> ManagedPlayersPositionsMapCopy = ManagedPlayersPositionsMap;
@@ -28,20 +31,22 @@ uint32 FVoxelWorldGenerationRunnable::Run() {
 			return IsCloserToNearestPlayer(A,B, ManagedPlayersPositionsMapCopy);
 		});
 		
-		for (int32 i = 0; i < OrderedChunkThreadedWorkOrders.Num() ; i++)
+		for (int32 i = 0; i < OrderedChunkThreadedWorkOrders.Num() && !bShutdown ; i++)
 		{
 			OrderedChunkThreadedWorkOrders[i].SendOrder();
+
+			
 		}
 		OrderedChunkThreadedWorkOrders.Empty();
 		
-		
-		
 	}
+	UE_LOG(LogTemp, Warning, TEXT("Run function is exiting"))
 	return 0;
 }
 
 void FVoxelWorldGenerationRunnable::Exit() {
 	/* Post-Run code, threaded */
+	UE_LOG(LogTemp, Warning, TEXT("A world generation thread is exiting"))
 }
 
 void FVoxelWorldGenerationRunnable::Stop() {
