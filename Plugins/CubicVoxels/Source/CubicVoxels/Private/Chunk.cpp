@@ -161,77 +161,56 @@ void AChunk::RenderChunk(float VoxelSize)
 		3,2,7,6  // Down  
 	};
 
-	TMap<FName, TArray<FVector>>  VertexData;
-	TMap<FName, TArray<FVector>>  NormalsData;
-	TMap<FName, TArray<int32>> TriangleData;
-	TMap<FName, TArray<FVector2d>> UVData;
-	TMap<FName, TArray<FColor>> VertexColors;
-	TMap<FName, TArray<FProcMeshTangent>> Tangents;
-
-	TMap<FName, int32> SectionIndices;
-	TMap<FName, bool> VoxelPhysicsParameters;
-	int32 NumberOfSections = 0;
-
-	TMap<FName, int32> VertexCounts;
-
+	TMap<FName, ProcMeshSectionDataWrapper>  VoxelTypeToMeshSectionMap;
+	
+	int32 NumberOfAlreadyCreatedSections = 0;
+	
 	for (auto& VoxelQuad : VoxelQuads)
 	{
-		const auto CurrentVoxelType = VoxelQuad.Get<1>().VoxelType;
+		const auto CurrentVoxelType = VoxelQuad.Value.VoxelType;
 		
-		if (!SectionIndices.Contains(CurrentVoxelType))
+		if (!VoxelTypeToMeshSectionMap.Contains(CurrentVoxelType))
 		{
-			SectionIndices.Add( CurrentVoxelType, NumberOfSections);
-			VoxelPhysicsParameters.Add(CurrentVoxelType, VoxelQuad.Get<1>().IsSolid);
-			VertexCounts.Add(CurrentVoxelType, 0);
-			NumberOfSections += 1;
-			
-			VertexData.Add(CurrentVoxelType,  TArray<FVector>());
-			NormalsData.Add(CurrentVoxelType, TArray<FVector>() );
-			TriangleData.Add(CurrentVoxelType, TArray<int32>() );
-			UVData.Add(CurrentVoxelType, TArray<FVector2d>() );
-			VertexColors.Add(CurrentVoxelType, TArray<FColor>() );
-			Tangents.Add(CurrentVoxelType, TArray<FProcMeshTangent>() );
+			auto MeshSection = ProcMeshSectionDataWrapper();
 
-			VertexCounts.Add(CurrentVoxelType, 0);
+			MeshSection.SectionIndex = NumberOfAlreadyCreatedSections;
+			NumberOfAlreadyCreatedSections +=1;
+
+			MeshSection.IsSolid = VoxelQuad.Value.IsSolid;
+
+			VoxelTypeToMeshSectionMap.Add(VoxelQuad.Value.VoxelType, MeshSection);
 			
 		}
-		
-		for (int j = 0; j < 4; ++j)
+
+		if (auto MeshSectionDataPtr = VoxelTypeToMeshSectionMap.Find(CurrentVoxelType))
 		{
-			VertexData.Find(CurrentVoxelType)->Add(VoxelSize*localBlockVertexData[LocalBlockTriangleData[j + VoxelQuad.Get<0>().W * 4]] + VoxelSize*FVector(VoxelQuad.Get<0>().X,VoxelQuad.Get<0>().Y, VoxelQuad.Get<0>().Z ) );
-		}
+			for (int j = 0; j < 4; ++j)
+			{
+				MeshSectionDataPtr->Vertices.Add(VoxelSize*localBlockVertexData[LocalBlockTriangleData[j + VoxelQuad.Key.W * 4]] + VoxelSize*FVector(VoxelQuad.Key.X,VoxelQuad.Key.Y, VoxelQuad.Key.Z ) );
+			}
 									
-		UVData.Find(CurrentVoxelType)->Append({FVector2d(1,1), FVector2d(1,0), FVector2d(0,0), FVector2d(0,1)});
-		const auto CurrentVertexCount = *VertexCounts.Find(CurrentVoxelType);
-		TriangleData.Find(CurrentVoxelType)->Append({CurrentVertexCount + 3, CurrentVertexCount + 2, CurrentVertexCount, CurrentVertexCount + 2, CurrentVertexCount + 1, CurrentVertexCount});
-		*VertexCounts.Find(CurrentVoxelType) += 4;
+			MeshSectionDataPtr->UVs.Append({FVector2d(1,1), FVector2d(1,0), FVector2d(0,0), FVector2d(0,1)});
+			const auto CurrentVertexCount = MeshSectionDataPtr->VertexCount;
+			MeshSectionDataPtr->Triangles.Append({CurrentVertexCount + 3, CurrentVertexCount + 2, CurrentVertexCount, CurrentVertexCount + 2, CurrentVertexCount + 1, CurrentVertexCount});
+			MeshSectionDataPtr->VertexCount += 4;
+		}
+		
+		
 	}
 
 	Mesh->ClearAllMeshSections();
 
-	for (auto& VoxelType : SectionIndices)
+	for (const auto& VoxelTypeMeshSectionPair : VoxelTypeToMeshSectionMap)
 	{
-		const auto CurrentSectionVoxelType = VoxelType.Get<0>();
-		auto CurrentSectionPhysicsPtr = VoxelPhysicsParameters.Find(VoxelType.Get<0>());
-		bool IsSectionSolid = true;
+		Mesh->CreateMeshSection(VoxelTypeMeshSectionPair.Value.SectionIndex, VoxelTypeMeshSectionPair.Value.Vertices, VoxelTypeMeshSectionPair.Value.Triangles, VoxelTypeMeshSectionPair.Value.Normals, VoxelTypeMeshSectionPair.Value.UVs, VoxelTypeMeshSectionPair.Value.VertexColors, VoxelTypeMeshSectionPair.Value.Tangents, VoxelTypeMeshSectionPair.Value.IsSolid);
+		if (const auto VoxelCharacteristics = VoxelCharacteristicsData->FindRow<FVoxelCharacteristics>(VoxelTypeMeshSectionPair.Key, TEXT("Retrieving recently created chunk section's material") ))
+		{
+			Mesh->SetMaterial(VoxelTypeMeshSectionPair.Value.SectionIndex, VoxelCharacteristics->VoxelMaterial);
+		}
 
-		if (CurrentSectionPhysicsPtr)
-		{
-			IsSectionSolid = *CurrentSectionPhysicsPtr;
-		}
-		
-		Mesh->CreateMeshSection(VoxelType.Get<1>(), *VertexData.Find(CurrentSectionVoxelType), *TriangleData.Find(CurrentSectionVoxelType), *NormalsData.Find(CurrentSectionVoxelType), *UVData.Find(CurrentSectionVoxelType), *VertexColors.Find(CurrentSectionVoxelType), *Tangents.Find(CurrentSectionVoxelType), IsSectionSolid );
-		
-		const auto VoxelCharacteristics = VoxelCharacteristicsData->FindRow<FVoxelCharacteristics>(VoxelType.Get<0>(), TEXT("Retrieving recently created chunk section's material") );
-		if (VoxelCharacteristics)
-		{
-			Mesh->SetMaterial(VoxelType.Get<1>(), VoxelCharacteristics->VoxelMaterial);
-			
-		}
-		
 	}
-	//TODO: move this to asynchronous code
 	FChunkData::Compress(*BlocksDataPtr);
+
 }
 
 void AChunk::DestroyBlockAt(FVector BlockWorldLocation)

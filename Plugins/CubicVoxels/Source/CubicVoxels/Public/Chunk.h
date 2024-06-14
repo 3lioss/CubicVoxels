@@ -45,6 +45,7 @@ public:
 	void ShowFaceGenerationStatus();
 
 protected:
+	UPROPERTY()
 	UStaticMeshComponent* Cube;
 	
 	// Called when the game starts or when spawned
@@ -69,4 +70,19 @@ public:
 	UPROPERTY()
 	TObjectPtr<UProceduralMeshComponent> Mesh;
 	
+};
+
+struct ProcMeshSectionDataWrapper
+{
+	int32 SectionIndex;
+	
+	TArray<FVector> Vertices;
+	TArray<FVector>  Normals;
+	TArray<int32> Triangles;
+	TArray<FVector2d> UVs;
+	TArray<FColor> VertexColors;
+	TArray<FProcMeshTangent> Tangents;
+	int32 VertexCount;
+	
+	bool IsSolid;
 };

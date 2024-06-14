@@ -24,15 +24,15 @@ void AVoxelWorld::TestingFunction(APlayerController* PlayerController)
 		FVector SpawnLocation = FVector(0.0f, 0.0f, 0.0f);
 		FRotator SpawnRotation = FRotator(0.0f, 0.0f, 0.0f);
 
-		auto TestStreamer = GetWorld()->SpawnActor<AVoxelDataStreamer>(AVoxelDataStreamer::StaticClass(), SpawnLocation, SpawnRotation, SpawnParams);
-		TestStreamer->SetOwner(PlayerController);
-		TestStreamer->OwningPlayerController = PlayerController;
-		
-		UE_LOG(LogTemp, Display, TEXT("In VoxelWorld: %hs"), IsValid(TestStreamer->OwningPlayerController) ? "Player controller valid" : "Player controller not valid")
-	
-		const FVoxelStreamData* TestStreamPtr = new FVoxelStreamData( "test" ,TArray<uint8>({2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37}));
-		
-		TestStreamer->AddDataToStream(TestStreamPtr, this);
+		// auto TestStreamer = GetWorld()->SpawnActor<AVoxelDataStreamer>(AVoxelDataStreamer::StaticClass(), SpawnLocation, SpawnRotation, SpawnParams);
+		// TestStreamer->SetOwner(PlayerController);
+		// TestStreamer->OwningPlayerController = PlayerController;
+		//
+		// UE_LOG(LogTemp, Display, TEXT("In VoxelWorld: %hs"), IsValid(TestStreamer->OwningPlayerController) ? "Player controller valid" : "Player controller not valid")
+		//
+		// const FVoxelStreamData* TestStreamPtr = new FVoxelStreamData( "test" ,TArray<uint8>({2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37}));
+		//
+		// TestStreamer->AddDataToStream(TestStreamPtr, this);
 		
 	}
 }
@@ -139,7 +139,7 @@ void AVoxelWorld::IterateGeneratedChunkLoadingAndSidesGeneration()
 		RecentlyGeneratedChunk->SetActorScale3D(this->GetActorScale());
 		RecentlyGeneratedChunk->LoadBlocks(DataToLoad.Value);
 		RecentlyGeneratedChunk->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
-			
+		
 		ChunkStates.Add(DataToLoad.Key, EChunkState::Loaded);
 		ChunkActorsMap.Add(MakeTuple(DataToLoad.Key, RecentlyGeneratedChunk));
 
@@ -719,17 +719,17 @@ void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 		CurrentPlayerData.ChunkSidesMeshingOrdersQueuePtr = CurrentPlayerData.PlayerChunkSidesGenerationThread->GetGenerationOrdersQueue();
 		
 
-		if (NetworkMode == EVoxelWorldNetworkMode::ServerSendsFullGeometry)
+		/*if (NetworkMode == EVoxelWorldNetworkMode::ServerSendsFullGeometry)
 		{
 			TObjectPtr<AVoxelDataStreamer> PlayerDataStreamer = CreateDefaultSubobject<AVoxelDataStreamer>("Player dedicated data streamer");
 			PlayerDataStreamer->SetOwner(PlayerToAdd);
 			PlayerDataStreamer->OwningPlayerController = PlayerToAdd;
 			CurrentPlayerData.PlayerDataStreamer = PlayerDataStreamer;
-		}
+		}*/
 
 		ManagedPlayerDataMap.Add(PlayerToAdd, CurrentPlayerData);
 		CurrentGenerationThreadIndex = CurrentGenerationThreadIndex + 1 % NumberOfWorldGenerationThreads;
-		UE_LOG(LogTemp, Display, TEXT("Finished adding managed player"))
+		UE_LOG(LogTemp, Display, TEXT("Finished adding managed player"));
 	}
 	else
 	{
@@ -908,6 +908,7 @@ void AVoxelWorld::UpdatePlayerPositionsOnThreads()
 		}
 		
 		PlayerPositionsUpdateOnThreadsMutex.Unlock();
+
 	}
 	
 
