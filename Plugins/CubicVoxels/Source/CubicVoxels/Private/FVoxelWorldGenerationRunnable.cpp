@@ -22,7 +22,6 @@ uint32 FVoxelWorldGenerationRunnable::Run() {
 		while (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder) && !bShutdown)
 		{
 			OrderedChunkThreadedWorkOrders.Add(CurrentOrder);
-
 		}
 		
 		const TMap<int32, FIntVector> ManagedPlayersPositionsMapCopy = ManagedPlayersPositionsMap;
@@ -31,11 +30,9 @@ uint32 FVoxelWorldGenerationRunnable::Run() {
 			return IsCloserToNearestPlayer(A,B, ManagedPlayersPositionsMapCopy);
 		});
 		
-		for (int32 i = 0; i < OrderedChunkThreadedWorkOrders.Num() && !bShutdown ; i++)
+		for (int32 i = 0; i < OrderedChunkThreadedWorkOrders.Num() && !bShutdown; i++)
 		{
 			OrderedChunkThreadedWorkOrders[i].SendOrder();
-
-			
 		}
 		OrderedChunkThreadedWorkOrders.Empty();
 		

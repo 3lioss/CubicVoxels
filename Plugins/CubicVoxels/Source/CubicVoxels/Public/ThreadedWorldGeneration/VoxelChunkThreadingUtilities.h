@@ -200,7 +200,7 @@ static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTup
 					{
 						if (Directions[i].X >= 0 && Directions[i].X < ChunkSize && Directions[i].Y >= 0 && Directions[i].Y < ChunkSize && Directions[i].Z >= 0 && Directions[i].Z < ChunkSize) 
 						{
-							const auto CurrentNeighbour = CompressedChunkBlocksPtr->GetVoxelAt(FIntVector3(Directions[i].X,Directions[i].Y,Directions[i].Z));
+							const auto CurrentNeighbour = CompressedChunkBlocksPtr->GetVoxelAt(Directions[i]);
 							if (CurrentNeighbour.IsTransparent == true && (CurrentNeighbour != CurrentBlock) ) 
 							{
 								QuadsData.Add(FIntVector4(x,y,z,i), CurrentBlock);

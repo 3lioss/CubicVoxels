@@ -45,8 +45,6 @@ public:
 	void ShowFaceGenerationStatus();
 
 protected:
-	UPROPERTY()
-	UStaticMeshComponent* Cube;
 	
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

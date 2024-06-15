@@ -22,15 +22,6 @@ AChunk::AChunk()
 
 	VoxelCharacteristicsData = ConstructorHelpers::FObjectFinder<UDataTable>(TEXT("/Script/Engine.DataTable'/CubicVoxels/DefaultVoxelCharacteistics.DefaultVoxelCharacteistics'")).Object;
 
-	// Create a static mesh component
-	Cube = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Cube"));
-	// Load the Cube mesh
-	UStaticMesh* CubeMesh = ConstructorHelpers::FObjectFinder<UStaticMesh>(TEXT("StaticMesh'/Engine/BasicShapes/Cube.Cube'")).Object;
-	
-	// Set the component's mesh
-	Cube->SetStaticMesh(CubeMesh);
-	Cube->SetupAttachment(Mesh);
-
 }
 
 void AChunk::LoadBlocks(TSharedPtr<FChunkData> InputVoxelData)
