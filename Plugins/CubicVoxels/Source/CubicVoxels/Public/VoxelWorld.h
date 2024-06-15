@@ -119,7 +119,7 @@ private:
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc> GeneratedChunksToLoadInGame;
 	TQueue< FChunkGeometry, EQueueMode::Mpsc> ChunkQuadsToLoad;
 
-	FIntVector GetRegionOfChunk(FIntVector ChunkCoordinates);
+	static FIntVector GetRegionOfChunk(FIntVector ChunkCoordinates);
 
 	void RegisterChunkForSaving(FIntVector3 ChunkLocation);
 
@@ -148,8 +148,8 @@ protected:
 	TArray<TTuple<FIntVector, TSharedPtr<FChunkData>>> GeneratedChunksToLoadByDistanceToNearestPlayer;
 	TMap<FIntVector, uint32> NumbersOfPlayerOutsideRangeOfChunkMap;
 	TQueue<FChunkGeometry> ChunkGeometryToBeLoadedLater;
-	
-	int32 OneNorm(FIntVector Vector) const;
+
+	static int32 OneNorm(FIntVector Vector);
 	
 	static FVoxel DefaultGenerateBlockAt(FVector Position);
 
