@@ -11,7 +11,7 @@ struct FChunkThreadedWorkOrderBase
 	FIntVector ChunkLocation;
 	EChunkThreadedWorkOrderType OrderType;
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* OutputChunkDataQueuePtr;
-	TQueue< FChunkGeometry, EQueueMode::Mpsc>* GeneratedChunkGeometryToLoadQueuePtr;
+	TQueue< TSharedPtr<FChunkGeometry>, EQueueMode::Mpsc>* GeneratedChunkGeometryToLoadQueuePtr;
 
 	FVoxel (*GenerationFunction) (FVector);
 	TSharedPtr<FChunkData> TargetChunkDataPtr;

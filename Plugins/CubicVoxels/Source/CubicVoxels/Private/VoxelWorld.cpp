@@ -212,7 +212,6 @@ void AVoxelWorld::IterateGeneratedChunkLoadingAndSidesGeneration()
 					
 			}
 				
-			//	}
 		}
 	}
 	GeneratedChunksToLoadByDistanceToNearestPlayer.Empty();
@@ -225,21 +224,21 @@ void AVoxelWorld::IterateChunkMeshing()
 	while(!ChunkQuadsToLoad.IsEmpty())
 	{
 		
-		FChunkGeometry DataToLoad;
+		TSharedPtr<FChunkGeometry> DataToLoad;
 		ChunkQuadsToLoad.Dequeue(DataToLoad);
-		if (const auto LoadingState = ChunkStates.Find(DataToLoad.ChunkLocation))
+		if (const auto LoadingState = ChunkStates.Find(DataToLoad->ChunkLocation))
 		{
 			if (*LoadingState == EChunkState::Loaded)
 			{
 				
-				const auto ChunkActor = ChunkActorsMap.Find(DataToLoad.ChunkLocation);
+				const auto ChunkActor = ChunkActorsMap.Find(DataToLoad->ChunkLocation);
 				if (ChunkActor && IsValid(*ChunkActor))
 				{
-					(*ChunkActor)->AddQuads(DataToLoad.Geometry);
+					(*ChunkActor)->AddQuads(DataToLoad->Geometry);
 					(*ChunkActor)->RenderChunk(DefaultVoxelSize);
-					if (DataToLoad.DirectionIndex >= 0 && DataToLoad.DirectionIndex < 6)
+					if (DataToLoad->DirectionIndex >= 0 && DataToLoad->DirectionIndex < 6)
 					{
-						(*ChunkActor)->IsSideGeometryLoaded[DataToLoad.DirectionIndex] = true;
+						(*ChunkActor)->IsSideGeometryLoaded[DataToLoad->DirectionIndex] = true;
 					}
 					else
 					{
@@ -262,7 +261,7 @@ void AVoxelWorld::IterateChunkMeshing()
 
 	while(!ChunkGeometryToBeLoadedLater.IsEmpty())
 	{
-		FChunkGeometry DataToLoad;
+		TSharedPtr<FChunkGeometry> DataToLoad;
 		ChunkGeometryToBeLoadedLater.Dequeue(DataToLoad);
 		ChunkQuadsToLoad.Enqueue(DataToLoad);
 	}

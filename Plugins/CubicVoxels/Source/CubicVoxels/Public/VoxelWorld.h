@@ -117,7 +117,7 @@ private:
 	TMap<FIntVector, TMap<FIntVector, FChunkData>> LoadedRegions; 
 
 	TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc> GeneratedChunksToLoadInGame;
-	TQueue< FChunkGeometry, EQueueMode::Mpsc> ChunkQuadsToLoad;
+	TQueue< TSharedPtr<FChunkGeometry>, EQueueMode::Mpsc> ChunkQuadsToLoad;
 
 	static FIntVector GetRegionOfChunk(FIntVector ChunkCoordinates);
 
@@ -147,7 +147,7 @@ protected:
 	TArray<TSet<FIntVector>> ViewLayers;
 	TArray<TTuple<FIntVector, TSharedPtr<FChunkData>>> GeneratedChunksToLoadByDistanceToNearestPlayer;
 	TMap<FIntVector, uint32> NumbersOfPlayerOutsideRangeOfChunkMap;
-	TQueue<FChunkGeometry> ChunkGeometryToBeLoadedLater;
+	TQueue<TSharedPtr<FChunkGeometry>> ChunkGeometryToBeLoadedLater;
 
 	static int32 OneNorm(FIntVector Vector);
 	
