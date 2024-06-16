@@ -9,7 +9,6 @@ FVoxelWorldGenerationRunnable::FVoxelWorldGenerationRunnable()
 
 bool FVoxelWorldGenerationRunnable::Init() {
 	//PlayerRelativeLocation = FIntVector(0,0,0);
-	UE_LOG(LogTemp, Warning, TEXT("A thread has been created"))
 	return true;
 }
 
@@ -18,23 +17,26 @@ uint32 FVoxelWorldGenerationRunnable::Run() {
 		
 		//Empty the queue used to communicate with the game thread into an array
 		//Sorted by distance to the players
+
 		FChunkThreadedWorkOrderBase CurrentOrder;
-		while (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder) && !bShutdown)
+		while (ChunkThreadedWorkOrdersQueue.Dequeue(CurrentOrder) && !bShutdown )
 		{
-			OrderedChunkThreadedWorkOrders.Add(CurrentOrder);
+			SortedByDistanceToPlayerChunkBuffer.Add(CurrentOrder);
 		}
-		
-		const TMap<int32, FIntVector> ManagedPlayersPositionsMapCopy = ManagedPlayersPositionsMap;
-		OrderedChunkThreadedWorkOrders.Sort([this, ManagedPlayersPositionsMapCopy](const FChunkThreadedWorkOrderBase& A, const FChunkThreadedWorkOrderBase& B)
+
+		const TMap<int32, FIntVector> ManagedPlayersPositionsMapCopy = ManagedPlayersPositionsMapCopy; //Copy of the managed players' positions that is guaranteed not to change during sorting of generation orders by distance
+
+		SortedByDistanceToPlayerChunkBuffer.Sort([this, ManagedPlayersPositionsMapCopy](const FChunkThreadedWorkOrderBase& A, const FChunkThreadedWorkOrderBase& B)
 		{
 			return IsCloserToNearestPlayer(A,B, ManagedPlayersPositionsMapCopy);
 		});
 		
-		for (int32 i = 0; i < OrderedChunkThreadedWorkOrders.Num() && !bShutdown; i++)
+		
+		for (int32 i = 0; i < SortedByDistanceToPlayerChunkBuffer.Num() && !bShutdown ; i++)
 		{
-			OrderedChunkThreadedWorkOrders[i].SendOrder();
+			SortedByDistanceToPlayerChunkBuffer[i].SendOrder();
 		}
-		OrderedChunkThreadedWorkOrders.Empty();
+		SortedByDistanceToPlayerChunkBuffer.Empty();
 		
 	}
 	UE_LOG(LogTemp, Warning, TEXT("Run function is exiting"))
@@ -43,7 +45,6 @@ uint32 FVoxelWorldGenerationRunnable::Run() {
 
 void FVoxelWorldGenerationRunnable::Exit() {
 	/* Post-Run code, threaded */
-	UE_LOG(LogTemp, Warning, TEXT("A world generation thread is exiting"))
 }
 
 void FVoxelWorldGenerationRunnable::Stop() {
@@ -62,17 +63,10 @@ void FVoxelWorldGenerationRunnable::StartShutdown()
 	bShutdown = true;
 }
 
-// bool FVoxelWorldGenerationRunnable::IsFartherToPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B)
-// {
-// 	/*Finds which to-be-generated chunk is closer to the player between A and B*/
-// 	const auto  CA = A.ChunkLocation - PlayerRelativeLocation;
-// 	const auto  CB = B.ChunkLocation - PlayerRelativeLocation; 
-//
-// 	return (CA.X*CA.X + CA.Y*CA.Y + CA.Z*CA.Z > CB.X*CB.X + CB.Y*CB.Y + CB.Z*CB.Z);
-// }
+
 
 bool FVoxelWorldGenerationRunnable::IsCloserToNearestPlayer(FChunkThreadedWorkOrderBase A,
-	FChunkThreadedWorkOrderBase B, const TMap<int32, FIntVector>& ManagedPlayersPositionsMapConstCopy)
+                                                            FChunkThreadedWorkOrderBase B, const TMap<int32, FIntVector>& ManagedPlayersPositionsMapConstCopy)
 {
 	int32 MinSquareDistanceAToPlayer = -1;
 	int32 MinSquareDistanceBToPlayer = -1;

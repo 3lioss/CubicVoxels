@@ -63,7 +63,6 @@ public:
 	//Functions to access chunk data
 	bool IsChunkLoaded(FIntVector ChunkLocation);
 	TMap<FIntVector, FChunkData>* GetRegionSavedData(FIntVector RegionLocation);
-	TObjectPtr<AChunk> GetChunkAt(FIntVector ChunkLocation);
 	void SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData);
 
 	//Blueprint functions to edit and save the world
@@ -86,7 +85,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AddManagedPlayer(APlayerController* PlayerToAdd);
 
-	virtual void InterpretVoxelStream(FName StreamType,const TArray<uint8>& VoxelStream) override; 
+	virtual void InterpretVoxelStream(FName StreamType,const TArray<uint8>& VoxelStream) override;
+
+	//Functions that are used bu the chunk actor occasionally
+	TObjectPtr<AChunk> GetActorOfLoadedChunk(FIntVector ChunkLocation);
 	
 private:
 	//Each player is assigned a unique Id to be identified by on other threads

@@ -29,7 +29,8 @@ public:
 
 private:
 	
-	TArray< FChunkThreadedWorkOrderBase> OrderedChunkThreadedWorkOrders;
+	
+	TArray<FChunkThreadedWorkOrderBase> SortedByDistanceToPlayerChunkBuffer;
 
 	bool IsCloserToNearestPlayer(FChunkThreadedWorkOrderBase A, FChunkThreadedWorkOrderBase B, const TMap<int32, FIntVector>& ManagedPlayersPositionsMapConstCopy);
 

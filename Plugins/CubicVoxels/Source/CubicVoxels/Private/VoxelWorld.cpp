@@ -21,18 +21,7 @@ void AVoxelWorld::TestingFunction(APlayerController* PlayerController)
 		SpawnParams.Owner = this;
 		SpawnParams.Instigator = GetInstigator();
 
-		FVector SpawnLocation = FVector(0.0f, 0.0f, 0.0f);
-		FRotator SpawnRotation = FRotator(0.0f, 0.0f, 0.0f);
-
-		// auto TestStreamer = GetWorld()->SpawnActor<AVoxelDataStreamer>(AVoxelDataStreamer::StaticClass(), SpawnLocation, SpawnRotation, SpawnParams);
-		// TestStreamer->SetOwner(PlayerController);
-		// TestStreamer->OwningPlayerController = PlayerController;
-		//
-		// UE_LOG(LogTemp, Display, TEXT("In VoxelWorld: %hs"), IsValid(TestStreamer->OwningPlayerController) ? "Player controller valid" : "Player controller not valid")
-		//
-		// const FVoxelStreamData* TestStreamPtr = new FVoxelStreamData( "test" ,TArray<uint8>({2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,5,7,9,1,2,56,1,8,0,37,2,2,5,7,9,1,2,56,1,8,0,37}));
-		//
-		// TestStreamer->AddDataToStream(TestStreamPtr, this);
+		
 		
 	}
 }
@@ -44,7 +33,7 @@ AVoxelWorld::AVoxelWorld()
 	bReplicates = true;
 	PrimaryActorTick.bCanEverTick = true;
 	
-	ViewDistance = 12;
+	ViewDistance = 24;
 	VerticalViewDistance = 5;
 	
 	ViewLayers = TArray<TSet<FIntVector>>();
@@ -112,7 +101,7 @@ void AVoxelWorld::IterateChunkCreationNearPlayers( )
 
 void AVoxelWorld::IterateGeneratedChunkLoadingAndSidesGeneration()
 {
-
+	
 	while(!GeneratedChunksToLoadInGame.IsEmpty())
 	{
 		TTuple<FIntVector, TSharedPtr<FChunkData>> DataToLoad;
@@ -123,6 +112,8 @@ void AVoxelWorld::IterateGeneratedChunkLoadingAndSidesGeneration()
 	GeneratedChunksToLoadByDistanceToNearestPlayer.Sort([this](const TTuple<FIntVector, TSharedPtr<FChunkData>>& A,const TTuple<FIntVector, TSharedPtr<FChunkData>>& B) {
 		return DistanceToNearestPlayer(A.Key) < DistanceToNearestPlayer(B.Key); // sort the pre-cooked chunks by distance to player
 	});
+	
+
 	
 	//Load the chunks which have been pre-cooked asynchronously, in the order of distance to the player
 	for (int32 Index = 0; Index < GeneratedChunksToLoadByDistanceToNearestPlayer.Num(); Index++)
@@ -382,19 +373,7 @@ TMap<FIntVector, FChunkData>* AVoxelWorld::GetRegionSavedData(FIntVector ChunkRe
 	
 }
 
-TObjectPtr<AChunk> AVoxelWorld::GetChunkAt(FIntVector ChunkLocation)
-{
-	/*Get the actor of the chunk at a given location if it exists*/
-	
-	if(ChunkActorsMap.Contains(ChunkLocation))
-	{
-		return ChunkActorsMap[ChunkLocation];
-	}
-	else
-	{
-		return nullptr;
-	}
-}
+
 
 void AVoxelWorld::SetChunkSavedData(FIntVector ChunkLocation, FChunkData NewData) 
 {
@@ -508,16 +487,9 @@ void AVoxelWorld::DestroyBlockAt(FVector BlockWorldLocation)
 	//Check if the chunk affected by the edit is loaded
 	const auto AffectedChunkLocation = FloorVector((BlockWorldLocation - this->GetActorLocation())/(DefaultVoxelSize*ChunkSize*this->GetActorScale().X) );
 	
-	if (IsChunkLoaded(AffectedChunkLocation))
+	if (const auto ChunkPtr = GetActorOfLoadedChunk(AffectedChunkLocation))
 	{
-		const auto ChunkPtr = GetChunkAt(AffectedChunkLocation);
-		if (ChunkPtr)
-		{
-			//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Destroying block by calling chunk actor"));	
-			ChunkPtr->DestroyBlockAt(BlockWorldLocation); 
-		}
-		//If the chunk is marked as loaded but no actor is registered for it, it means the chunk is actually empty and there is nothing to remove
-		
+		ChunkPtr->DestroyBlockAt(BlockWorldLocation); 
 	}
 	else
 	{
@@ -578,18 +550,9 @@ void AVoxelWorld::SetBlockAt(FVector BlockWorldLocation, FVoxel Block)
 	//Check if the chunk affected by the edit is loaded
 	const auto AffectedChunkLocation = FloorVector((BlockWorldLocation - this->GetActorLocation())/(DefaultVoxelSize*ChunkSize*this->GetActorScale().X));
 	
-	if (IsChunkLoaded(AffectedChunkLocation))
+	if (const auto ChunkPtr = GetActorOfLoadedChunk(AffectedChunkLocation))
 	{
-		if (const auto ChunkPtr = GetChunkAt(AffectedChunkLocation))
-		{
-			
-			ChunkPtr->SetBlockAt(BlockWorldLocation, Block); 
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("A chunk was marked as loaded but the world has no valid pointer to it"))
-		}
-		
+		ChunkPtr->SetBlockAt(BlockWorldLocation, Block); 
 	}
 	else
 	{
@@ -641,20 +604,9 @@ FVoxel AVoxelWorld::GetBlockAt(FVector BlockWorldLocation)
 {
 	const auto AffectedChunkLocation = FloorVector((BlockWorldLocation - this->GetActorLocation())/(DefaultVoxelSize*ChunkSize*this->GetActorScale().X));
 	
-	if (IsChunkLoaded(AffectedChunkLocation))
+	if (const auto ChunkPtr = GetActorOfLoadedChunk(AffectedChunkLocation))
 	{
-		if (const auto ChunkPtr = GetChunkAt(AffectedChunkLocation))
-		{
-			
-			return ChunkPtr->GetBlockAt(BlockWorldLocation); 
-		}
-		else
-		{
-			auto Result = FVoxel();
-			Result.VoxelType = "Null";
-			return Result;
-		}
-		
+		return ChunkPtr->GetBlockAt(BlockWorldLocation); 
 	}
 	else
 	{
@@ -853,6 +805,26 @@ void AVoxelWorld::CreateChunkAt(FIntVector ChunkLocation,
 			OrdersQueuePtr->Enqueue(ChunkGenerationOrder);
 		}
 	}
+}
+
+TObjectPtr<AChunk> AVoxelWorld::GetActorOfLoadedChunk(FIntVector ChunkLocation)
+{
+	if (const auto LoadingState = ChunkStates.Find(ChunkLocation))
+	{
+		if (*LoadingState == EChunkState::Loaded)
+		{
+			if (const auto ChunkActor = ChunkActorsMap.Find(ChunkLocation))
+			{
+				return *ChunkActor;
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("Some chunk was marked as loaded but had no corresponding actor"))
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 FIntVector AVoxelWorld::GetRegionOfChunk(FIntVector ChunkCoordinates)

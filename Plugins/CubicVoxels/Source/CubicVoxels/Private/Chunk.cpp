@@ -191,11 +191,6 @@ void AChunk::RenderChunk(float VoxelSize)
 		
 	}
 
-	if (!IsValid(Mesh))
-	{
-		UE_LOG(LogTemp, Error, TEXT("The procedural mesh component is not valid"))
-	}
-
 	Mesh->ClearAllMeshSections();
 
 	for (const auto& VoxelTypeMeshSectionPair : VoxelTypeToMeshSectionMap)
@@ -259,11 +254,8 @@ void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 		}
 		else
 		{
-			if (OwningWorld->IsChunkLoaded(NeighboringChunks[i]))
+			if (const auto NeighborPtr = OwningWorld->GetActorOfLoadedChunk(NeighboringChunks[i]))
 			{
-				
-				
-				const auto NeighborPtr = OwningWorld->GetChunkAt(NeighboringChunks[i]);
 				const auto NeighboringVoxel = NeighborPtr->BlocksDataPtr->GetVoxelAt(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize));
 				if ((NeighboringVoxel != DefaultVoxel) && !NeighborPtr->HasQuadAt(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, OppositeDirections[i])))
 				{
@@ -276,7 +268,7 @@ void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 			}
 			else
 			{
-				UE_LOG(LogTemp, Error, TEXT("The neighboring chunk doesn't have a corresponding actor"))
+				UE_LOG(LogTemp, Error, TEXT("Neighborhing chunk doesn't exist"))
 			}
 		}
 	}
@@ -333,9 +325,8 @@ void AChunk::SetBlockAt(FVector BlockWorldLocation, FVoxel BlockType)
 		}
 		else
 		{
-			if (OwningWorld->IsChunkLoaded(NeighboringChunks[i]))
+			if (const auto NeighborPtr = OwningWorld->GetActorOfLoadedChunk(NeighboringChunks[i]))
 			{
-				const auto NeighborPtr = OwningWorld->GetChunkAt(NeighboringChunks[i]);
 				const auto NeighboringVoxel = NeighborPtr->BlocksDataPtr->GetVoxelAt(NormaliseCyclicalCoordinates(Neighbors[i], ChunkSize));
 				
 				if ((NeighboringVoxel.IsTransparent) && !NeighborPtr->HasQuadAt(FIntVector4(Neighbors[i].X, Neighbors[i].Y, Neighbors[i].Z, i)) && (!BlockType.IsTransparent || (NeighboringVoxel == BlockType)))
