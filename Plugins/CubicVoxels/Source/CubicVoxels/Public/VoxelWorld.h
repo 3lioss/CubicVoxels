@@ -136,11 +136,8 @@ private:
 	void ServerThreadsSetup(int32 NumberOfThreads);
 
 	//Functions and variables used for world download from server
-	//TMap<TObjectPtr<APlayerController>, FVoxelStreamManager> PlayerWorldDownloadingStreamMap;
-	void OverwriteSaveWithSerializedData(TArray<uint8> Data);
+	void OverwriteSaveWithSerializedData(TArray<uint8> Data); //TODO: check if this works as intended
 
-	int32 MaxBytesPerStreamChunk;
-	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

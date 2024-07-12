@@ -20,8 +20,6 @@ void AVoxelWorld::TestingFunction(APlayerController* PlayerController)
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Owner = this;
 		SpawnParams.Instigator = GetInstigator();
-
-		
 		
 	}
 }
@@ -80,18 +78,41 @@ void AVoxelWorld::IterateChunkCreationNearPlayers( )
 	/*Register all chunks in loading distance for loading for each managed player*/
 	for (int32 i = 0; i < ViewDistance; i++)
 	{
-		for (const auto CurrentPlayerThreadPair : ManagedPlayerDataMap)
+		for (const auto PlayerThreadPair : ManagedPlayerDataMap)
 		{
-			if (IsValid(CurrentPlayerThreadPair.Key))
+			if (IsValid(PlayerThreadPair.Key))
 			{
-				//Updating the generating thread's value for the position of the player
-				FVector PlayerPosition = CurrentPlayerThreadPair.Key->GetPawn()->GetActorLocation();
+				FVector PlayerPosition = PlayerThreadPair.Key->GetPawn()->GetActorLocation();
 				const auto LoadingOrigin = FloorVector(this->GetActorRotation().GetInverse().RotateVector((PlayerPosition - this->GetActorLocation())/(ChunkSize*DefaultVoxelSize*this->GetActorScale().X)));
 
 				//Logic for generating the chunks in proximity to the player
-				for (auto& Chunk : ViewLayers[i])
+				for (auto& ChunkRelativeLocation : ViewLayers[i])
 				{
-					CreateChunkAt(Chunk + LoadingOrigin, CurrentPlayerThreadPair.Value.ChunkGenerationOrdersQueuePtr);
+					if (!ChunkStates.Contains( ChunkRelativeLocation + LoadingOrigin))
+					{
+						CreateChunkAt(ChunkRelativeLocation + LoadingOrigin, PlayerThreadPair.Value.ChunkGenerationOrdersQueuePtr);
+					}
+					else
+					{
+						if (!PlayerThreadPair.Value.LocationsOfChunksThatExistOnClient.Contains(ChunkRelativeLocation + LoadingOrigin) && NetworkMode == EVoxelWorldNetworkMode::ServerSendsFullGeometry && HasAuthority())
+						{
+							if  (const auto ServerChunkActor = GetActorOfLoadedChunk(ChunkRelativeLocation + LoadingOrigin))
+							{
+								FChunkReplicatedData ChunkReplicatedData;
+								ChunkReplicatedData.ChunkGeometry = ServerChunkActor->GetGeometryData();
+
+								TArray<uint8> SerializedDataToReplicate;
+								FMemoryWriter MemoryWriter(SerializedDataToReplicate, true);
+								FChunkReplicatedData::StaticStruct()->SerializeBin(MemoryWriter, &ChunkReplicatedData);
+
+								// const auto StreamDataPtr = new FVoxelStreamData("Chunk replicated data", SerializedDataToReplicate);
+								//
+								// PlayerThreadPair.Value.PlayerDataStreamer->AddDataToStream( StreamDataPtr, ServerChunkActor);
+								UE_LOG(LogTemp, Display, TEXT("%d"), SerializedDataToReplicate.Num())
+							}
+						}
+						
+					}
 				}
 			}
 		}
@@ -214,28 +235,25 @@ void AVoxelWorld::IterateChunkMeshing()
 	
 	while(!ChunkQuadsToLoad.IsEmpty())
 	{
-		
 		TSharedPtr<FChunkGeometry> DataToLoad;
 		ChunkQuadsToLoad.Dequeue(DataToLoad);
 		if (const auto LoadingState = ChunkStates.Find(DataToLoad->ChunkLocation))
 		{
-			if (*LoadingState == EChunkState::Loaded)
+			if (const auto ChunkActor = GetActorOfLoadedChunk(DataToLoad->ChunkLocation))
 			{
-				
-				const auto ChunkActor = ChunkActorsMap.Find(DataToLoad->ChunkLocation);
-				if (ChunkActor && IsValid(*ChunkActor))
+				if (IsValid(ChunkActor))
 				{
-					(*ChunkActor)->AddQuads(DataToLoad->Geometry);
-					(*ChunkActor)->RenderChunk(DefaultVoxelSize);
+					ChunkActor->AddQuads(DataToLoad->Geometry);
+					ChunkActor->RenderChunk(DefaultVoxelSize);
+					ChunkActor->CompressChunk();
 					if (DataToLoad->DirectionIndex >= 0 && DataToLoad->DirectionIndex < 6)
 					{
-						(*ChunkActor)->IsSideGeometryLoaded[DataToLoad->DirectionIndex] = true;
+						ChunkActor->IsSideGeometryLoaded[DataToLoad->DirectionIndex] = true;
 					}
 					else
 					{
-						(*ChunkActor)->IsInsideGeometryLoaded = true;
+						ChunkActor->IsInsideGeometryLoaded = true;
 					}
-					
 				}
 				else
 				{
@@ -654,15 +672,14 @@ void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 		//Separating chunk insides and sides generation into different threads might get rid of some stutters
 		CurrentPlayerData.PlayerChunkSidesGenerationThread = CurrentPlayerData.PlayerWorldGenerationThread;
 		CurrentPlayerData.ChunkSidesMeshingOrdersQueuePtr = CurrentPlayerData.PlayerChunkSidesGenerationThread->GetGenerationOrdersQueue();
-		
 
-		/*if (NetworkMode == EVoxelWorldNetworkMode::ServerSendsFullGeometry)
-		{
-			TObjectPtr<AVoxelDataStreamer> PlayerDataStreamer = CreateDefaultSubobject<AVoxelDataStreamer>("Player dedicated data streamer");
-			PlayerDataStreamer->SetOwner(PlayerToAdd);
-			PlayerDataStreamer->OwningPlayerController = PlayerToAdd;
-			CurrentPlayerData.PlayerDataStreamer = PlayerDataStreamer;
-		}*/
+		FVector Location(0.0f, 0.0f, 0.0f);
+		FRotator Rotation(0.0f, 0.0f, 0.0f);
+		FActorSpawnParameters SpawnInfo;
+		auto PlayerOnlineDataStreamer =  GetWorld()->SpawnActor<AVoxelDataStreamer>(Location, Rotation, SpawnInfo);
+		PlayerOnlineDataStreamer->SetOwner(PlayerToAdd);
+		PlayerOnlineDataStreamer->OwningPlayerController = PlayerToAdd;
+		CurrentPlayerData.PlayerDataStreamer = PlayerOnlineDataStreamer;
 
 		ManagedPlayerDataMap.Add(PlayerToAdd, CurrentPlayerData);
 		CurrentGenerationThreadIndex = CurrentGenerationThreadIndex + 1 % NumberOfWorldGenerationThreads;
@@ -681,6 +698,12 @@ void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 		const auto CurrentPlayerChunkSidesGenerationRunnable = new FVoxelWorldGenerationRunnable;
 		CurrentPlayerData.PlayerChunkSidesGenerationThread = CurrentPlayerChunkSidesGenerationRunnable;
 		CurrentPlayerData.ChunkSidesMeshingOrdersQueuePtr = CurrentPlayerData.PlayerChunkSidesGenerationThread->GetGenerationOrdersQueue();
+		
+		FVector Location(0.0f, 0.0f, 0.0f);
+		FRotator Rotation(0.0f, 0.0f, 0.0f);
+		FActorSpawnParameters SpawnInfo;
+		auto PlayerOnlineDataStreamer =  GetWorld()->SpawnActor<AVoxelDataStreamer>(Location, Rotation, SpawnInfo);
+		CurrentPlayerData.PlayerDataStreamer = PlayerOnlineDataStreamer;
 
 		ManagedPlayerDataMap.Add(PlayerToAdd, CurrentPlayerData);
 	}
@@ -708,11 +731,7 @@ void AVoxelWorld::InterpretVoxelStream(FName StreamType, const TArray<uint8>& Vo
 			UE_LOG(LogTemp, Display, TEXT("END/ The bit at %d is at %d"), i, VoxelStream[i])
 		}
 	}
-
-	if (StreamType == "Chunk replicated data")
-	{
-		//TODO: write code that deserializes this as a FChunkReplicatedData and feeds the data into the client chunk
-	}
+	
 }
 
 
@@ -752,51 +771,37 @@ FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
 void AVoxelWorld::CreateChunkAt(FIntVector ChunkLocation,
                                 TQueue<FChunkThreadedWorkOrderBase, EQueueMode::Mpsc>* OrdersQueuePtr)
 {
-	if (!ChunkStates.Contains( ChunkLocation ))
+			
+	ChunkStates.Add(ChunkLocation, EChunkState::Loading);
+	if (const auto RegionSavedData = GetRegionSavedData(GetRegionOfChunk(ChunkLocation) ))
 	{
-				
-		ChunkStates.Add(ChunkLocation, EChunkState::Loading);
-		if (const auto RegionSavedData = GetRegionSavedData(GetRegionOfChunk(ChunkLocation) ))
+		if (const auto ChunkSavedData = RegionSavedData->Find(ChunkLocation))
 		{
-			if (const auto ChunkSavedData = RegionSavedData->Find(ChunkLocation))
-			{
-				const TSharedPtr<FChunkData> ChunkVoxelDataPtr(ChunkSavedData);
-				auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
+			const TSharedPtr<FChunkData> ChunkVoxelDataPtr(ChunkSavedData);
+			auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
 							
-				ChunkGenerationOrder.TargetChunkDataPtr = ChunkVoxelDataPtr;
-				ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
-				ChunkGenerationOrder.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
-				ChunkGenerationOrder.ChunkLocation = ChunkLocation;
+			ChunkGenerationOrder.TargetChunkDataPtr = ChunkVoxelDataPtr;
+			ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
+			ChunkGenerationOrder.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
+			ChunkGenerationOrder.ChunkLocation = ChunkLocation;
 								
-				if (ChunkVoxelDataPtr->IsAdditive)
-				{
-					ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GeneratingAndMeshingWithAdditiveData;
-					ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
-				}
-				else
-				{
-					ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::MeshingFromData;
-				}
-							
-				OrdersQueuePtr->Enqueue(ChunkGenerationOrder);
-
+			if (ChunkVoxelDataPtr->IsAdditive)
+			{
+				ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GeneratingAndMeshingWithAdditiveData;
+				ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
 			}
 			else
 			{
-				auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
-		
-				ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
-				ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
-				ChunkGenerationOrder.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
-				ChunkGenerationOrder.ChunkLocation = ChunkLocation;
-				ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GenerationAndMeshing;
-				OrdersQueuePtr->Enqueue(ChunkGenerationOrder);
+				ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::MeshingFromData;
 			}
+							
+			OrdersQueuePtr->Enqueue(ChunkGenerationOrder);
+
 		}
 		else
 		{
 			auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
-					
+		
 			ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
 			ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
 			ChunkGenerationOrder.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
@@ -805,6 +810,18 @@ void AVoxelWorld::CreateChunkAt(FIntVector ChunkLocation,
 			OrdersQueuePtr->Enqueue(ChunkGenerationOrder);
 		}
 	}
+	else
+	{
+		auto ChunkGenerationOrder = FChunkThreadedWorkOrderBase();
+					
+		ChunkGenerationOrder.GenerationFunction = WorldGenerationFunction;
+		ChunkGenerationOrder.OutputChunkDataQueuePtr = &GeneratedChunksToLoadInGame;
+		ChunkGenerationOrder.GeneratedChunkGeometryToLoadQueuePtr = &ChunkQuadsToLoad;
+		ChunkGenerationOrder.ChunkLocation = ChunkLocation;
+		ChunkGenerationOrder.OrderType = EChunkThreadedWorkOrderType::GenerationAndMeshing;
+		OrdersQueuePtr->Enqueue(ChunkGenerationOrder);
+	}
+	
 }
 
 TObjectPtr<AChunk> AVoxelWorld::GetActorOfLoadedChunk(FIntVector ChunkLocation)
@@ -936,7 +953,7 @@ void AVoxelWorld::DownloadWorldSave_Implementation()
 {
 	if (APlayerController* SendingPlayerController = Cast<APlayerController>(GetOwner()))
 	{
-		auto StreamManager = CreateDefaultSubobject<AVoxelDataStreamer>("Streamer"); 
+		auto StreamManager = CreateDefaultSubobject<AVoxelDataStreamer>("Streamer");
 
 		StreamManager->SetOwner(SendingPlayerController);
 		TFunction<void(TArray<uint8>)> SaveFileOverwriteFunction = [this](const TArray<uint8>& Data){ return OverwriteSaveWithSerializedData(Data); };

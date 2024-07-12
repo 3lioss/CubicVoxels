@@ -21,7 +21,7 @@ AVoxelDataStreamer::AVoxelDataStreamer()
 	
 	CurrentIndex = 0;
 
-	StreamMaxChunkSize = 10;
+	StreamMaxChunkSize = 20000;
 
 	LastAssignedStreamID = -1;
 }
@@ -44,7 +44,8 @@ void AVoxelDataStreamer::BeginPlay()
 
 void AVoxelDataStreamer::SendVoxelStreamChunk_Implementation(FVoxelStreamChunk Data)
 {
-	if (Data.StartIndex + Data.DataSlice.Num() >= Data.EndOfStreamIndex)
+	
+	if (Data.StartIndex + Data.DataSlice.Num() - 1 > Data.EndOfStreamIndex)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Invalid data chunk received while streaming world to client at index %d"), Data.StartIndex)	
 	}
@@ -63,10 +64,6 @@ void AVoxelDataStreamer::SendVoxelStreamChunk_Implementation(FVoxelStreamChunk D
 
 void AVoxelDataStreamer::CallEndFunctionOnClient_Implementation(int32 StreamID, FName StreamType)
 {
-	for (int32 i = 0; i < SerializedDataAccumulator.Num(); i++)
-	{
-		UE_LOG(LogTemp, Display, TEXT("The bit received at %d by the streamer is %d on the client"), i, SerializedDataAccumulator[i])
-	}
 	
 	auto StreamOwnerPtr = IDToActorMap.FindAndRemoveChecked(StreamID);
 	if (StreamOwnerPtr->Implements<UVoxelStreamInterpretationInterface>())
@@ -111,9 +108,9 @@ void AVoxelDataStreamer::Tick(float DeltaTime)
 						
 							FVoxelStreamChunk ChunkToSend;
 							ChunkToSend.StartIndex = CurrentIndex;
-							ChunkToSend.EndOfStreamIndex = CurrentStreamPtr->GetStreamData().Num();
+							ChunkToSend.EndOfStreamIndex = CurrentStreamPtr->GetStreamData().Num() -1;
 							const auto N = FMath::Min( StreamMaxChunkSize, CurrentStreamPtr->GetStreamData().Num() - CurrentIndex);
-							ChunkToSend.DataSlice.SetNum(N+1);
+							ChunkToSend.DataSlice.SetNum(N);
 							for (int32 i = 0; i < N; i++)
 							{
 								ChunkToSend.DataSlice[i] = CurrentStreamPtr->GetStreamData()[CurrentIndex + i];
@@ -124,7 +121,7 @@ void AVoxelDataStreamer::Tick(float DeltaTime)
 					
 						}
 					
-						if (CurrentIndex >= CurrentStreamPtr->GetStreamData().Num())
+						if (CurrentIndex >= CurrentStreamPtr->GetStreamData().Num() )
 						{
 							UE_LOG(LogTemp, Display, TEXT("Calling end function"));
 							const auto a =  CurrentStreamPtr->StreamType;

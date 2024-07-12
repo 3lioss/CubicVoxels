@@ -16,4 +16,5 @@ UENUM()
 enum class EVoxelWorldNetworkMode
 {
 	ClientOnly, ServerSendsVoxelDiffs, ServerSendsFullGeometry
+	//WARNING: ServerSendsVoxelDiffs is deprecated and ServerSendsFullGeometry is in active developpement
 };

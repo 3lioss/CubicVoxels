@@ -26,7 +26,10 @@ public class CubicVoxels : ModuleRules
 			new string[]
 			{
 				"Core",
-				"ProceduralMeshComponent"
+				"ProceduralMeshComponent",
+				"CoreUObject",
+				"Engine",
+				"InputCore"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -38,7 +41,7 @@ public class CubicVoxels : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"Slate",
-				"SlateCore",
+				"SlateCore"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

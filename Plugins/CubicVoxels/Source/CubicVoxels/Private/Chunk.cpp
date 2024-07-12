@@ -114,6 +114,19 @@ void AChunk::ShowFaceGenerationStatus()
 	}
 }
 
+void AChunk::InterpretVoxelStream(FName StreamType, const TArray<uint8>& VoxelStream)
+{
+	if (StreamType == "Chunk replicated data")
+	{
+		FChunkReplicatedData DeserializedChunkReplicatedData;
+		FMemoryReader MemoryReader(VoxelStream, true);
+		FChunkReplicatedData::StaticStruct()->SerializeBin(MemoryReader, &DeserializedChunkReplicatedData);
+
+		VoxelQuads = DeserializedChunkReplicatedData.ChunkGeometry.Geometry;
+		RenderChunk(DefaultVoxelSize);
+	}
+}
+
 void AChunk::BeginPlay()
 {
 	Super::BeginPlay();
@@ -202,8 +215,22 @@ void AChunk::RenderChunk(float VoxelSize)
 		}
 
 	}
-	FChunkData::Compress(*BlocksDataPtr);
+}
 
+void AChunk::CompressChunk()
+{
+	FChunkData::Compress(*BlocksDataPtr);
+}
+
+
+FChunkGeometry AChunk::GetGeometryData()
+{
+	FChunkGeometry ChunkGeometryData;
+	ChunkGeometryData.Geometry = VoxelQuads;
+	ChunkGeometryData.ChunkLocation = Location;
+	ChunkGeometryData.DirectionIndex = 6;
+
+	return ChunkGeometryData;
 }
 
 void AChunk::DestroyBlockAt(FVector BlockWorldLocation)

@@ -16,6 +16,7 @@ class CUBICVOXELS_API AVoxelDataStreamer : public AActor
 	
 public:
 	// Sets default values for this actor's properties
+	// WARNING!!!!! This actor will only work if it is not owned by a player controller AND OwningPlayerController is set to a valid object
 	AVoxelDataStreamer();
 
 	void AddDataToStream(const FVoxelStreamData* , AActor* StreamOriginActor);

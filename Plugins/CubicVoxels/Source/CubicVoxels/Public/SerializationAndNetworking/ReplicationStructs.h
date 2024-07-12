@@ -16,6 +16,8 @@ struct FVoxelWorldManagedPlayerData
 
 	TObjectPtr<AVoxelDataStreamer> PlayerDataStreamer;
 
+	TSet<FIntVector> LocationsOfChunksThatExistOnClient;
+
 };
 
 USTRUCT()
@@ -66,10 +68,7 @@ struct FChunkReplicatedData
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	FChunkGeometry ChunkGeometry;
-
-	UPROPERTY()
-	FIntVector ChunkLocation;
 	
 };

@@ -11,7 +11,7 @@ class UProceduralMeshComponent;
 struct FMeshData;
 
 UCLASS()
-class CUBICVOXELS_API AChunk : public AActor
+class CUBICVOXELS_API AChunk : public AActor, public IVoxelStreamInterpretationInterface
 {
 	GENERATED_BODY()
 	
@@ -25,6 +25,8 @@ public:
 	bool HasQuadAt(FIntVector4 QuadLocation);
 	void RemoveQuad(FIntVector4 Quad);
 	void RenderChunk(float VoxelSize);
+	FChunkGeometry GetGeometryData();
+	void CompressChunk();
 
 	//Functions to modify the chunk
 	void DestroyBlockAt(FVector BlockWorldLocation);
@@ -43,6 +45,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void ShowFaceGenerationStatus();
+
+	//Replication
+	virtual void InterpretVoxelStream(FName StreamType,const TArray<uint8>& VoxelStream) override;
 
 protected:
 	
