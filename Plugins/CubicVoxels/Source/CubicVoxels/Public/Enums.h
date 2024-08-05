@@ -15,5 +15,5 @@ enum class EChunkThreadedWorkOrderType
 UENUM()
 enum class EVoxelWorldNetworkMode
 {
-	ClientOnly, ServerSendsVoxelDiffs, ServerSendsFullGeometry
+	ClientOnly
 };
