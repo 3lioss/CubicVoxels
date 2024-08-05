@@ -21,9 +21,8 @@ public:
 
 	//Functions to set up the chunk
 	void LoadBlocks(TSharedPtr<FChunkData> InputVoxelData);
-	void AddQuads(TMap<FIntVector4, FVoxel> VoxelQuadsToAdd);
-	bool HasQuadAt(FIntVector4 QuadLocation);
-	void RemoveQuad(FIntVector4 Quad);
+	void AddQuads(TMap<FIntVector, FVoxelGeometryElement> VoxelQuadsToAdd);
+	bool HasQuadAt(FIntVector VoxelLocation, int32 DirectionIndex);
 	void RenderChunk(float VoxelSize);
 	FChunkGeometry GetGeometryData();
 	void CompressChunk();
@@ -54,8 +53,12 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+private:
+
 	//A map that associates to a coordinate and a direction the voxel at that location if it should have a face in the given direction
-	TMap<FIntVector4, FVoxel> VoxelQuads;
+	TMap<FIntVector, FVoxelGeometryElement> VoxelGeometry;
+	void AddGeometryAt(FIntVector VoxelLocation, FVoxelGeometryElement GeometryElement );
+	void RemoveGeometryAt(FIntVector VoxelLocation, uint8 GeometryShape );
 
 	static bool IsInsideChunk(FIntVector BlockLocation);
 

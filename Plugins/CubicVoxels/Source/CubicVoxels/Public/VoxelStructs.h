@@ -93,21 +93,45 @@ struct FVoxelStack
 };
 
 USTRUCT()
+struct FVoxelGeometryElement
+{
+	/*Struct that represents the geometry of a single block whose faces are not necessarily all loaded*/
+	GENERATED_BODY()
+
+	UPROPERTY(SaveGame)
+	FName VoxelType;
+
+	UPROPERTY(SaveGame)
+	uint8 GeometryShape;
+	/* The 8 bits correspond to the 8 vertices of a block
+	 * The bits which have value 1 correspond to a vertex belonging to a face that should be rendered
+	 */
+
+	//TODO: Add name of "filling voxel" for half-water half-solid voxels
+	
+	FVoxelGeometryElement()
+	{
+		VoxelType = "None";
+		GeometryShape = 0;
+	}
+
+	FVoxelGeometryElement(FName InputVoxelType)
+	{
+		VoxelType = InputVoxelType;
+		GeometryShape = 0;
+	}
+};
+
+USTRUCT()
 struct FChunkGeometry
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY(SaveGame)
 	FIntVector ChunkLocation;
 
 	UPROPERTY(SaveGame)
-	TMap<FIntVector4, FVoxel> Geometry; 
-	/*TODO: Replace all direct manipulations of this struct in code by method calls, then change the way the geometry is represented
-	 * The integer at position x*ChunkSize*ChunkSize + y*ChunkSize + z represents the geometry at block x,y,z
-	 * Its 8 bits correspond to the 8 vertices of a block
-	 * The bits which have value 1 correspond to a face that is present
-	 * 
-	 */
+	TMap<FIntVector, FVoxelGeometryElement> Geometry; 
 
 	UPROPERTY(SaveGame)
 	int32 DirectionIndex; //Takes a value between 0 and 5 for a chunk's side, and something else for a chunk's inside

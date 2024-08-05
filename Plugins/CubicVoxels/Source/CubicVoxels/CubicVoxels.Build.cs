@@ -29,7 +29,7 @@ public class CubicVoxels : ModuleRules
 				"ProceduralMeshComponent",
 				"CoreUObject",
 				"Engine",
-				"InputCore"
+				"InputCore", "OnlineSubsystemUtils"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

@@ -22,6 +22,15 @@ const int BlockTriangleData[24] = {
 	5,4,1,0, // Up
 	3,2,7,6  // Down
 };
+
+constexpr uint8 BaseGeometryShapes[6] = {
+	170,
+	204,
+	85,
+	51,
+	240,
+	15
+};
 	
 static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueue< TTuple<FIntVector, TSharedPtr<FChunkData>>, EQueueMode::Mpsc>* PreCookedChunksToLoadBlockData, TQueue< TSharedPtr<FChunkGeometry>, EQueueMode::Mpsc>* ChunkGeometryLoadingQueuePtr,  FVoxel (*GenerationFunction) (FVector))
 {
@@ -54,7 +63,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 	// StartTime = FDateTime::UtcNow(); 
 		
 	//Generate the chunk's quads data
-	TMap<FIntVector4, FVoxel> QuadsData;
+	TMap<FIntVector, FVoxelGeometryElement> GeometryData;
 	
 	for (int x = 0; x < ChunkSize; ++x)
 	{
@@ -73,6 +82,10 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 						FIntVector(x,y,z+1),
 						FIntVector(x,y,z-1)							
 					};
+
+					
+
+					auto CurrentBlockGeometry = FVoxelGeometryElement(ChunkDataPtr->GetVoxelAt(x,y,z).VoxelType);
 						
 					for (int i = 0; i < 6; ++i)
 					{
@@ -80,10 +93,12 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 						{
 							if (ChunkDataPtr->GetVoxelAt(Directions[i]).IsTransparent == true && ChunkDataPtr->GetVoxelAt(Directions[i]) != ChunkDataPtr->GetVoxelAt(x,y,z) ) 
 							{
-								QuadsData.Add(FIntVector4(x,y,z,i), ChunkDataPtr->GetVoxelAt(x,y,z));
+								CurrentBlockGeometry.GeometryShape = CurrentBlockGeometry.GeometryShape | BaseGeometryShapes[i];
 							}
 						}
 					}
+
+					GeometryData.Add(FIntVector(x,y,z), CurrentBlockGeometry);
 				}
 			}
 		}
@@ -93,7 +108,7 @@ static void GenerateChunkDataAndComputeInsideFaces(FIntVector Coordinates, TQueu
 
 	auto GeneratedGeometry = MakeShared<FChunkGeometry>();
 	GeneratedGeometry->ChunkLocation = Coordinates;
-	GeneratedGeometry->Geometry = QuadsData;
+	GeneratedGeometry->Geometry = GeometryData;
 	GeneratedGeometry->DirectionIndex = -1;
 	ChunkGeometryLoadingQueuePtr->Enqueue(GeneratedGeometry);
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, ChunkDataPtr));
@@ -126,7 +141,7 @@ static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQ
 	}
 		
 	//Generate the chunk's quads data
-	TMap<FIntVector4, FVoxel> QuadsData;
+	TMap<FIntVector3, FVoxelGeometryElement> GeometryData;
 	
 	for (int x = 0; x < ChunkSize; ++x)
 	{
@@ -145,6 +160,8 @@ static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQ
 						FIntVector(x,y,z+1),
 						FIntVector(x,y,z-1)							
 					};
+
+					auto CurrentBlockGeometry = FVoxelGeometryElement(ChunkDataPtr->GetVoxelAt(x,y,z).VoxelType);
 						
 					for (int i = 0; i < 6; ++i)
 					{
@@ -152,10 +169,12 @@ static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQ
 						{
 							if (ChunkDataPtr->GetVoxelAt(Directions[i]).IsTransparent == true && ChunkDataPtr->GetVoxelAt(Directions[i]) != ChunkDataPtr->GetVoxelAt(x,y,z) ) 
 							{
-								QuadsData.Add(FIntVector4(x,y,z,i), ChunkDataPtr->GetVoxelAt(x,y,z));
+								CurrentBlockGeometry.GeometryShape = CurrentBlockGeometry.GeometryShape | BaseGeometryShapes[i];
 							}
 						}
 					}
+
+					GeometryData.Add(FIntVector(x,y,z), CurrentBlockGeometry);
 				}
 			}
 		}
@@ -164,7 +183,7 @@ static void GenerateUnloadedDataAndComputeInsideFaces(FIntVector Coordinates, TQ
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, TEXT("Finished generating from additive data"));	
 	auto GeneratedGeometry = MakeShared<FChunkGeometry>();
 	GeneratedGeometry->ChunkLocation = Coordinates;
-	GeneratedGeometry->Geometry = QuadsData;
+	GeneratedGeometry->Geometry = GeometryData;
 	GeneratedGeometry->DirectionIndex = -1;
 	ChunkGeometryLoadingQueuePtr->Enqueue(GeneratedGeometry);
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, ChunkDataPtr));
@@ -175,7 +194,7 @@ static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTup
 	/*Generate the mesh data of a chunk whose voxel data is already accessible*/
 		
 	//Generate the chunk's quads data
-	TMap<FIntVector4, FVoxel> QuadsData;
+	TMap<FIntVector, FVoxelGeometryElement> GeometryData;
 	
 	for (int x = 0; x < ChunkSize; ++x)
 	{
@@ -184,6 +203,7 @@ static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTup
 			for (int z = 0; z < ChunkSize; ++z)
 			{
 				const auto CurrentBlock =  CompressedChunkBlocksPtr->GetVoxelAt(FIntVector3(x,y,z));
+				
 
 				if (CurrentBlock.VoxelType != "Air" )
 				{
@@ -195,6 +215,8 @@ static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTup
 						FIntVector(x,y,z+1),
 						FIntVector(x,y,z-1)							
 					};
+
+					auto CurrentBlockGeometry = FVoxelGeometryElement(CurrentBlock.VoxelType);
 						
 					for (int i = 0; i < 6; ++i)
 					{
@@ -203,10 +225,12 @@ static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTup
 							const auto CurrentNeighbour = CompressedChunkBlocksPtr->GetVoxelAt(Directions[i]);
 							if (CurrentNeighbour.IsTransparent == true && (CurrentNeighbour != CurrentBlock) ) 
 							{
-								QuadsData.Add(FIntVector4(x,y,z,i), CurrentBlock);
+								CurrentBlockGeometry.GeometryShape = CurrentBlockGeometry.GeometryShape | BaseGeometryShapes[i];
 							}
 						}
 					}
+
+					GeometryData.Add(FIntVector(x,y,z), CurrentBlockGeometry);
 				}
 			}
 		}
@@ -214,7 +238,7 @@ static void ComputeInsideFacesOfLoadedChunk(FIntVector Coordinates, TQueue< TTup
 
 	auto GeneratedGeometry = MakeShared<FChunkGeometry>();
 	GeneratedGeometry->ChunkLocation = Coordinates;
-	GeneratedGeometry->Geometry = QuadsData;
+	GeneratedGeometry->Geometry = GeometryData;
 	GeneratedGeometry->DirectionIndex = -1;
 	ChunkGeometryLoadingQueuePtr->Enqueue(GeneratedGeometry);
 	PreCookedChunksToLoadBlockData->Enqueue(MakeTuple(Coordinates, CompressedChunkBlocksPtr));
@@ -284,17 +308,19 @@ static void ComputeChunkSideFacesFromData(TSharedPtr<FChunkData> DataOfChunkToAd
 
 	//Generate the chunk's side's quads data
 
-	TMap<FIntVector4, FVoxel> SideGeometryData;
+	TMap<FIntVector, FVoxelGeometryElement> SideGeometryData;
 		
 	for (int x = 0; x < ChunkSize; ++x)
 	{
 		for (int y = 0; y < ChunkSize; ++y)
 		{
 			const auto CurrentBlockLocation = LoopXDirection*x + LoopYDirection*y + LoopOrigin[DirectionIndex];
-			const auto CurrentNeighbourLocation = NormaliseCyclicalCoordinates(CurrentBlockLocation + Directions[DirectionIndex], ChunkSize) ; //There is probably a problem there as the compression-decompression and the geometry generation logic seem to be working
+			const auto CurrentNeighbourLocation = NormaliseCyclicalCoordinates(CurrentBlockLocation + Directions[DirectionIndex], ChunkSize); 
 			if (DataOfChunkToAddFacesTo->GetVoxelAt(CurrentBlockLocation).VoxelType != "Air" && NeighbourChunkBlocks->GetVoxelAt(CurrentNeighbourLocation).IsTransparent == true && (NeighbourChunkBlocks->GetVoxelAt(CurrentNeighbourLocation) != DataOfChunkToAddFacesTo->GetVoxelAt(CurrentBlockLocation) )) //TODO: modify so that no reference is made to air 
 			{
-				SideGeometryData.Add(FIntVector4(CurrentBlockLocation.X,CurrentBlockLocation.Y, CurrentBlockLocation.Z , DirectionIndex), DataOfChunkToAddFacesTo->GetVoxelAt(CurrentBlockLocation) );
+				auto CurrentBlockSideGeometry = FVoxelGeometryElement(DataOfChunkToAddFacesTo->GetVoxelAt(CurrentBlockLocation).VoxelType);
+				CurrentBlockSideGeometry.GeometryShape = BaseGeometryShapes[DirectionIndex];
+				SideGeometryData.Add(FIntVector(CurrentBlockLocation.X,CurrentBlockLocation.Y, CurrentBlockLocation.Z), CurrentBlockSideGeometry );
 			}
 		}
 	}
