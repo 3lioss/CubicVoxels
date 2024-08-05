@@ -7,7 +7,6 @@
 #include "VoxelStructs.h"
 #include "SerializationAndNetworking/ReplicationStructs.h"
 #include "ThreadedWorldGeneration/FVoxelWorldGenerationRunnable.h"
-#include "SerializationAndNetworking/VoxelStreamInterpretationInterface.h"
 #include "SerializationAndNetworking/VoxelWorldGlobalDataSaveGame.h"
 #include "VoxelWorld.generated.h"
 
@@ -17,7 +16,7 @@ class UProceduralMeshComponent;
 enum class EChunkState;
 
 UCLASS()
-class AVoxelWorld : public AActor, public IVoxelStreamInterpretationInterface
+class AVoxelWorld : public AActor
 {
 	GENERATED_BODY()
 
@@ -33,7 +32,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool IsEnabled; 
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY()
 	EVoxelWorldNetworkMode NetworkMode;
 
 	//Chunk loading distance parameters //TODO: Make it mutable at runtime
@@ -57,8 +56,6 @@ public:
 	//Name of the folder where the world saved data is saved
 	UPROPERTY(EditAnywhere)
 	FString WorldName;
-
-	TArray<uint8> GetSerializedWorldData();
 	
 	//Functions to access chunk data
 	bool IsChunkLoaded(FIntVector ChunkLocation);
@@ -77,17 +74,13 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	FVoxel GetBlockAt(FVector BlockWorldLocation);
-
-	UFUNCTION(BlueprintCallable, Server, Reliable)
-	void DownloadWorldSave();
+	
 
 	//Function to add a player to be managed by the VoxelWorld
 	UFUNCTION(BlueprintCallable)
 	void AddManagedPlayer(APlayerController* PlayerToAdd);
-
-	virtual void InterpretVoxelStream(FName StreamType,const TArray<uint8>& VoxelStream) override;
-
-	//Functions that are used bu the chunk actor occasionally
+	
+	//Functions that are used by the chunk actor occasionally
 	TObjectPtr<AChunk> GetActorOfLoadedChunk(FIntVector ChunkLocation);
 	
 private:
@@ -135,11 +128,6 @@ private:
 
 	void ServerThreadsSetup(int32 NumberOfThreads);
 
-	//Functions and variables used for world download from server
-	//TMap<TObjectPtr<APlayerController>, FVoxelStreamManager> PlayerWorldDownloadingStreamMap;
-	void OverwriteSaveWithSerializedData(TArray<uint8> Data);
-
-	int32 MaxBytesPerStreamChunk;
 	
 protected:
 	// Called when the game starts or when spawned

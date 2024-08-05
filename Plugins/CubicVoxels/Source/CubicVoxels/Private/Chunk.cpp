@@ -242,7 +242,6 @@ void AChunk::DestroyBlockAt(FVector BlockWorldLocation)
 	for (int32 i = 0; i < 6; ++i)
 	{
 		
-		
 		VoxelQuads.Remove(FIntVector4(BlockLocation.X, BlockLocation.Y, BlockLocation.Z, i));
 		if (IsInsideChunk(Neighbors[i]))
 		{

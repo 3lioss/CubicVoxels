@@ -100,12 +100,7 @@ struct FChunkGeometry
 	FIntVector ChunkLocation;
 	
 	TMap<FIntVector4, FVoxel> Geometry; 
-	/*TODO: Replace all direct manipulations of this struct in code by method calls, then change the way the geometry is represented
-	 * The integer at position x*ChunkSize*ChunkSize + y*ChunkSize + z represents the geometry at block x,y,z
-	 * Its 8 bits correspond to the 8 vertices of a block
-	 * The bits which have value 1 correspond to a face that is present
-	 * 
-	 */
+	
 
 	int32 DirectionIndex; //Takes a value between 0 and 5 for a chunk's side, and something else for a chunk's inside
 };

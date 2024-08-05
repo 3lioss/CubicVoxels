@@ -6,8 +6,6 @@
 #include "ThreadedWorldGeneration/FVoxelWorldGenerationRunnable.h"
 #include "Kismet/GameplayStatics.h"
 #include "Chunk.h"
-#include "SerializationAndNetworking/VoxelDataStreamer.h"
-#include "SerializationAndNetworking/VoxelWorldNetworkSerializationSaveGame.h"
 #include "SerializationAndNetworking/VoxelWorldGlobalDataSaveGame.h"
 #include "SerializationAndNetworking/RegionDataSaveGame.h"
 
@@ -71,7 +69,7 @@ AVoxelWorld::AVoxelWorld()
 	
 	WorldName = "MyWorld";
 
-	NetworkMode = EVoxelWorldNetworkMode::ServerSendsFullGeometry;
+	NetworkMode = EVoxelWorldNetworkMode::ClientOnly;
 	
 }
 
@@ -293,38 +291,6 @@ void AVoxelWorld::IterateChunkUnloading()
 		}
 	}
 	NumbersOfPlayerOutsideRangeOfChunkMap.Empty();
-	
-}
-
-
-TArray<uint8> AVoxelWorld::GetSerializedWorldData()
-{
-	auto Serializer = Cast<UVoxelWorldNetworkSerializationSaveGame>(UGameplayStatics::CreateSaveGameObject(UVoxelWorldNetworkSerializationSaveGame::StaticClass()));
-	Serializer->WorldName = WorldName;
-
-	auto WorldVoxelData = TMap<FIntVector, FRegionDataSerializationWrapper>();
-	auto SavedRegions = WorldSavedInfo->SavedRegions;
-
-	for (const auto& CurrentRegion : SavedRegions)
-	{
-		if (const auto RegionDataPtr = GetRegionSavedData(CurrentRegion))
-		{
-			auto WrappedRegionData = FRegionDataSerializationWrapper( *RegionDataPtr);
-			WorldVoxelData.Add(CurrentRegion, WrappedRegionData);
-		}
-	}
-
-	Serializer->WorldVoxelData = WorldVoxelData;
-	
-	TArray<uint8> SerializedData = TArray<uint8>();
-	if (UGameplayStatics::SaveGameToMemory(Serializer, SerializedData))
-	{
-		return SerializedData;
-	}
-	else
-	{
-		return TArray<uint8>();	
-	}
 	
 }
 
@@ -694,28 +660,6 @@ void AVoxelWorld::AddManagedPlayer(APlayerController* PlayerToAdd)
 	
 }
 
-void AVoxelWorld::InterpretVoxelStream(FName StreamType, const TArray<uint8>& VoxelStream)
-{
-	if (StreamType == "WorldSave")
-	{
-		OverwriteSaveWithSerializedData(VoxelStream);
-	}
-
-	if (StreamType == "test")
-	{
-		for (int32 i = 0; i < VoxelStream.Num(); i++)
-		{
-			UE_LOG(LogTemp, Display, TEXT("END/ The bit at %d is at %d"), i, VoxelStream[i])
-		}
-	}
-
-	if (StreamType == "Chunk replicated data")
-	{
-		//TODO: write code that deserializes this as a FChunkReplicatedData and feeds the data into the client chunk
-	}
-}
-
-
 FVoxel AVoxelWorld::DefaultGenerateBlockAt(FVector Position)
 {
 	//Default world generation function
@@ -932,48 +876,6 @@ void AVoxelWorld::ServerThreadsSetup(int32 NumberOfThreads)
 	ManagedPlayerDataMap = TMap<TObjectPtr<APlayerController>, FVoxelWorldManagedPlayerData>();
 }
 
-void AVoxelWorld::DownloadWorldSave_Implementation()
-{
-	if (APlayerController* SendingPlayerController = Cast<APlayerController>(GetOwner()))
-	{
-		auto StreamManager = CreateDefaultSubobject<AVoxelDataStreamer>("Streamer"); 
-
-		StreamManager->SetOwner(SendingPlayerController);
-		TFunction<void(TArray<uint8>)> SaveFileOverwriteFunction = [this](const TArray<uint8>& Data){ return OverwriteSaveWithSerializedData(Data); };
-		
-		auto WorldDownloadStream = FVoxelStreamData( FName("WorldSaveStream"), GetSerializedWorldData());
-		StreamManager->AddDataToStream(&WorldDownloadStream, this);
-	}
-}
-
-void AVoxelWorld::OverwriteSaveWithSerializedData(TArray<uint8> Data)
-{
-	if (UVoxelWorldNetworkSerializationSaveGame* SerializationSaveObject = Cast<UVoxelWorldNetworkSerializationSaveGame>(UGameplayStatics::LoadGameFromMemory(Data)))
-	{
-		WorldName = SerializationSaveObject->WorldName;
-
-		TSet<FIntVector> SavedRegions;
-		
-		for (const auto& Region : SerializationSaveObject->WorldVoxelData)
-		{
-			SavedRegions.Add(Region.Key);
-
-			auto SaveObject = Cast<URegionDataSaveGame>(UGameplayStatics::CreateSaveGameObject(URegionDataSaveGame::StaticClass()));
-
-			SaveObject->RegionData = Region.Value.RegionData;
-
-			const FString& RegionSaveSlot = GetRegionName(Region.Key);
-			UGameplayStatics::SaveGameToSlot(SaveObject, RegionSaveSlot, 0 );
-			
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Could not deserialize saved data"))
-	}
-
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Overwrote client save file with server save file"));	
-}
 
 // Called when the game starts or when spawned
 void AVoxelWorld::BeginPlay()
@@ -1040,7 +942,7 @@ void AVoxelWorld::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (IsEnabled && (NetworkMode == EVoxelWorldNetworkMode::ServerSendsVoxelDiffs ||  NetworkMode == EVoxelWorldNetworkMode::ClientOnly || (NetworkMode == EVoxelWorldNetworkMode::ServerSendsFullGeometry && HasAuthority())))
+	if (IsEnabled)
 	{
 		UpdatePlayerPositionsOnThreads();
 	
