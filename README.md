@@ -10,7 +10,5 @@ It is an **Unreal Engine 5 plugin** that allows you to **procedurally generate i
   -World editing
   
   -World saving and loading from disk
-
-  -Multiplayer replication and sending the world over the network (work-in-progress as of now)
   
 This code is distributed under a **GNU GPLv3 licence**
